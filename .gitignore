@@ -13,3 +13,8 @@ packages/*/*.log
 *.pyc
 __pycache__/
 packages/.bump-*/
+packages/*/*.tar.*
+packages/*/LICENSE-*
+packages/*/hyprquery/
+packages/*/HyDE/
+packages/*/calamares/
