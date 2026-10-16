@@ -10,7 +10,8 @@ permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # superseded PR builds are cancelled; every push to main is built to completion
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
