@@ -5,9 +5,9 @@
 # against that URL).  Exercises: first publish, an upgrade publish (old
 # packages kept for cached clients), and the refusal paths.
 set -Eeuo pipefail
-trap 'echo "FAILED at ${BASH_SOURCE[0]##*/}:$LINENO: $BASH_COMMAND" >&2' ERR
+trap 'echo "FAILED at ${BASH_SOURCE[0]##*/}:$LINENO: $BASH_COMMAND" >&2; tail -n 20 "$T"/*.log >&2 2>/dev/null' ERR
 root="$(cd "$(dirname "$0")/../.." && pwd)"
-T="$(mktemp -d)"; trap 'kill $srv 2>/dev/null; rm -rf "$T"' EXIT
+T="$(mktemp -d)"; trap 'kill ${srv:-} 2>/dev/null; rm -rf "$T"' EXIT
 assets="$T/assets"; mkdir -p "$assets" "$T/bin"
 
 # --- stub gh: release view/create/upload/download/delete-asset on $assets
@@ -37,6 +37,12 @@ mkdir -p repository keys
 cp -a "$root/keys/public" keys/
 cp -a "$root/keys/private" keys/
 cp -a "$root/repository/x86_64" repository/
+# CI signs with an ephemeral key that differs from the committed keys/public:
+# record it in this throwaway clone so the "clean tree" rail passes.
+if [[ -n "$(git status --porcelain keys/public)" ]]; then
+    git add keys/public
+    git -c user.name=test -c user.email=test@localhost commit -qm "test: signing key"
+fi
 port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
 python3 -m http.server "$port" --bind 127.0.0.1 --directory "$assets" >/dev/null 2>&1 & srv=$!
 sleep 1
