@@ -1,0 +1,17 @@
+# Build order for local builds (dependencies first).  One directory per line.
+noctoware-release
+noctoware-keyring
+noctoware-mirrorlist
+noctoware-branding
+bibata-cursor-theme
+hyprquery
+noctoware-system
+noctoware-sddm-theme
+noctoware-hyde
+noctoware-gaming
+noctoware-ai-tools
+noctoware-welcome
+noctoware-desktop
+noctoware-plasma
+noctoware-revo
+noctoware-calamares-config

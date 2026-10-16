@@ -1,0 +1,348 @@
+#!/usr/bin/env python3
+"""Noctoware Welcome — first-run hub for Noctoware Linux.
+
+Never asks for or stores passwords: anything privileged (system updates) or
+account-related (Claude Code / Codex sign-in) runs in a terminal window where
+sudo or the tool itself handles authentication.
+"""
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import threading
+import webbrowser
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
+
+APP_ID = "org.noctoware.Welcome"
+DOCS_URL = "https://github.com/noctoware/noctoware/tree/main/docs"
+LOCAL_DOCS = Path("/usr/share/doc/noctoware")
+CONFIG = Path(GLib.get_user_config_dir()) / "noctoware" / "welcome.json"
+CSS = b"""
+window { background: #0b0712; color: #e9ddff; }
+.hero { font-size: 26px; font-weight: 300; }
+.sub { color: #a493c4; }
+.card { background: #160e24; border-radius: 14px; padding: 16px; border: 1px solid #2a1d40; }
+.card-title { font-weight: 600; font-size: 15px; }
+.status { color: #a493c4; font-size: 12px; }
+.mono { font-family: monospace; font-size: 12px; }
+button.suggested-action { background: #9b6bff; color: #0b0712; border-radius: 9px; }
+button { border-radius: 9px; }
+"""
+
+
+def load_cfg() -> dict:
+    try:
+        return json.loads(CONFIG.read_text())
+    except (OSError, ValueError):
+        return {"show_at_startup": True}
+
+
+def save_cfg(cfg: dict) -> None:
+    CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG.write_text(json.dumps(cfg, indent=2))
+
+
+def run(cmd: list[str], timeout: int = 60) -> tuple[int, str]:
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return p.returncode, (p.stdout + p.stderr).strip()
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return 127, str(e)
+
+
+def terminal_argv(command: str) -> list[str]:
+    """argv that opens a terminal running *command*, then waits for Enter."""
+    wrapped = f"{command}; echo; read -r -p 'Press Enter to close…' _"
+    for term, prefix in (("xdg-terminal-exec", []), ("kitty", ["--"]), ("konsole", ["-e"]),
+                         ("foot", []), ("alacritty", ["-e"])):
+        if shutil.which(term):
+            return [term, *prefix, "bash", "-lc", wrapped]
+    raise FileNotFoundError("no terminal emulator found")
+
+
+def spawn(argv: list[str]) -> None:
+    subprocess.Popen(argv, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def os_release() -> dict:
+    data = {}
+    for f in ("/etc/os-release", "/usr/lib/os-release"):
+        try:
+            for line in Path(f).read_text().splitlines():
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    data.setdefault(k, v.strip('"'))
+        except OSError:
+            continue
+    return data
+
+
+def session_kind() -> str:
+    d = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+    return "plasma" if "kde" in d else "hyprland" if "hyprland" in d else d or "unknown"
+
+
+class Card(Gtk.Box):
+    def __init__(self, title: str, body: str):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.add_css_class("card")
+        t = Gtk.Label(label=title, xalign=0)
+        t.add_css_class("card-title")
+        b = Gtk.Label(label=body, xalign=0, wrap=True)
+        b.add_css_class("sub")
+        self.status = Gtk.Label(label="", xalign=0, wrap=True, selectable=True)
+        self.status.add_css_class("status")
+        self.buttons = Gtk.Box(spacing=8)
+        for w in (t, b, self.status, self.buttons):
+            self.append(w)
+
+    def button(self, label: str, cb, primary: bool = False) -> Gtk.Button:
+        btn = Gtk.Button(label=label)
+        if primary:
+            btn.add_css_class("suggested-action")
+        btn.connect("clicked", lambda *_: cb())
+        self.buttons.append(btn)
+        return btn
+
+    def set_status(self, text: str) -> None:
+        GLib.idle_add(self.status.set_label, text)
+
+
+def background(fn):
+    threading.Thread(target=fn, daemon=True).start()
+
+
+class Welcome(Gtk.ApplicationWindow):
+    def __init__(self, app: Gtk.Application):
+        super().__init__(application=app, title="Welcome to Noctoware")
+        self.set_default_size(980, 720)
+        self.cfg = load_cfg()
+        osr = os_release()
+
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        for side in ("top", "bottom", "start", "end"):
+            getattr(outer, f"set_margin_{side}")(24)
+
+        header = Gtk.Box(spacing=16)
+        logo = Gtk.Image.new_from_icon_name("noctoware")
+        logo.set_pixel_size(72)
+        titles = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, valign=Gtk.Align.CENTER)
+        hero = Gtk.Label(label=f"Welcome to {osr.get('PRETTY_NAME', 'Noctoware Linux')}", xalign=0)
+        hero.add_css_class("hero")
+        sub = Gtk.Label(label=f"{osr.get('VERSION', '')} · rolling release · session: {session_kind()}", xalign=0)
+        sub.add_css_class("sub")
+        titles.append(hero)
+        titles.append(sub)
+        header.append(logo)
+        header.append(titles)
+        outer.append(header)
+
+        grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=2,
+                           min_children_per_line=1, column_spacing=14, row_spacing=14, homogeneous=True)
+        scroller = Gtk.ScrolledWindow(vexpand=True)
+        scroller.set_child(grid)
+        outer.append(scroller)
+        for card in (self.updates_card(), self.gpu_card(), self.steam_card(), self.claude_card(),
+                     self.codex_card(), self.themes_card(), self.revo_card(), self.sysinfo_card(),
+                     self.docs_card()):
+            grid.append(card)
+
+        footer = Gtk.Box(spacing=8)
+        chk = Gtk.CheckButton(label="Show this window at login", active=self.cfg.get("show_at_startup", True))
+        chk.connect("toggled", self.on_startup_toggled)
+        footer.append(chk)
+        outer.append(footer)
+        self.set_child(outer)
+
+    # -- cards -----------------------------------------------------------
+    def updates_card(self) -> Card:
+        c = Card("System updates", "Noctoware, Arch and CachyOS packages all update together with pacman.")
+
+        def check():
+            c.set_status("Checking for updates…")
+            if not shutil.which("checkupdates"):
+                c.set_status("checkupdates (pacman-contrib) is not installed.")
+                return
+            rc, out = run(["checkupdates"], timeout=180)
+            if rc == 0 and out:
+                n = len(out.splitlines())
+                c.set_status(f"{n} update(s) available.")
+            elif rc == 2:
+                c.set_status("Your system is up to date.")
+            else:
+                c.set_status(f"Could not check for updates ({out.splitlines()[-1] if out else rc}).")
+
+        c.button("Check for updates", lambda: background(check))
+        c.button("Update now", lambda: self.in_terminal("sudo pacman -Syu"), primary=True)
+        return c
+
+    def gpu_card(self) -> Card:
+        c = Card("Graphics drivers", "Drivers are chosen for your GPU at install time by noctoware-gpu.")
+
+        def info():
+            lines = []
+            state = Path("/etc/noctoware/gpu.json")
+            if state.exists():
+                try:
+                    lines.append("Installed profile: " + json.loads(state.read_text()).get("profile", "?"))
+                except ValueError:
+                    pass
+            rc, out = run(["noctoware-gpu", "plan"])
+            lines.append(out if rc == 0 else "noctoware-gpu not available")
+            if shutil.which("nvidia-smi"):
+                rc, out = run(["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"])
+                if rc == 0:
+                    lines.append("NVIDIA: " + out)
+            c.set_status("\n".join(lines))
+
+        c.button("Show GPU and driver details", lambda: background(info), primary=True)
+        c.status.add_css_class("mono")
+        return c
+
+    def steam_card(self) -> Card:
+        c = Card("Steam", "Steam, Proton, Gamescope, GameMode and MangoHud are preinstalled.")
+        c.button("Launch Steam", lambda: self.launch_desktop("steam.desktop", ["steam"]), primary=True)
+        return c
+
+    def claude_card(self) -> Card:
+        c = Card("Claude Code", "Anthropic's coding agent. Installed per user with Anthropic's official "
+                                "installer after you agree; sign in with your own account.")
+
+        def status():
+            rc, out = run(["noctoware-claude-setup", "--check"])
+            c.set_status(f"Installed: {out}" if rc == 0 else "Not installed yet.")
+
+        c.button("Set up Claude Code", lambda: self.in_terminal("noctoware-claude-setup && claude"), primary=True)
+        background(status)
+        return c
+
+    def codex_card(self) -> Card:
+        c = Card("OpenAI Codex CLI", "Preinstalled from the Arch repositories. Sign in with your ChatGPT "
+                                     "account or API key the first time you run it.")
+
+        def status():
+            rc, out = run(["codex", "--version"])
+            c.set_status(out if rc == 0 else "codex is not installed (sudo pacman -S openai-codex).")
+
+        c.button("Open Codex", lambda: self.in_terminal("codex"), primary=True)
+        background(status)
+        return c
+
+    def themes_card(self) -> Card:
+        c = Card("Desktop themes", "Switch HyDE themes under Hyprland, or Plasma global themes under KDE.")
+        if session_kind() == "plasma":
+            c.button("Open Plasma themes", lambda: spawn(["systemsettings", "kcm_lookandfeel"]), primary=True)
+            return c
+        themes_dir = Path.home() / ".config/hyde/themes"
+        themes = sorted(p.name for p in themes_dir.iterdir() if p.is_dir()) if themes_dir.is_dir() else []
+        if not themes:
+            c.set_status("HyDE is set up the first time you log into the Noctoware Hyprland session.")
+            return c
+        dd = Gtk.DropDown.new_from_strings(themes)
+        if "Noctoware" in themes:
+            dd.set_selected(themes.index("Noctoware"))
+        c.buttons.append(dd)
+
+        def apply():
+            name = themes[dd.get_selected()]
+            script = Path.home() / ".local/lib/hyde/theme.switch.sh"
+            if script.exists():
+                spawn([str(script), "-s", name])
+                c.set_status(f"Applying {name}…")
+
+        c.button("Apply", apply, primary=True)
+        c.button("More themes…", lambda: spawn(["hyde-shell", "theme.select"]) if shutil.which("hyde-shell") else None)
+        return c
+
+    def revo_card(self) -> Card:
+        c = Card("Revo Shell (optional)", "An alternative macOS-style shell. Not shipped with Noctoware: its "
+                                          "upstream has no license file, so it is only fetched from upstream at "
+                                          "your request.")
+        if shutil.which("noctoware-shell"):
+            c.button("Configure shells", lambda: self.in_terminal("noctoware-shell"), primary=True)
+            rc, out = run(["noctoware-shell", "status"])
+            c.set_status(out)
+        else:
+            c.set_status("Install with: sudo pacman -S noctoware-revo")
+        return c
+
+    def sysinfo_card(self) -> Card:
+        c = Card("System information", "Detected live from your hardware.")
+        c.status.add_css_class("mono")
+
+        def info():
+            rc, out = run(["fastfetch", "--pipe", "--logo", "none"])
+            c.set_status(out if rc == 0 else "fastfetch unavailable")
+
+        c.button("Show", lambda: background(info), primary=True)
+        c.button("Open in terminal", lambda: self.in_terminal("fastfetch"))
+        return c
+
+    def docs_card(self) -> Card:
+        c = Card("Documentation", "Install, recovery (snapshots/rollback), GPU, gaming and AI tool guides.")
+        c.button("Online docs", lambda: webbrowser.open(DOCS_URL), primary=True)
+        if LOCAL_DOCS.is_dir():
+            c.button("Offline docs", lambda: Gio.AppInfo.launch_default_for_uri(LOCAL_DOCS.as_uri(), None))
+        return c
+
+    # -- helpers ---------------------------------------------------------
+    def in_terminal(self, command: str) -> None:
+        try:
+            spawn(terminal_argv(command))
+        except FileNotFoundError as e:
+            self.toast(str(e))
+
+    def launch_desktop(self, desktop_id: str, fallback: list[str]) -> None:
+        info = Gio.DesktopAppInfo.new(desktop_id)
+        if info:
+            info.launch([], None)
+        elif shutil.which(fallback[0]):
+            spawn(fallback)
+        else:
+            self.toast(f"{fallback[0]} is not installed")
+
+    def toast(self, msg: str) -> None:
+        dlg = Gtk.AlertDialog(message=msg)
+        dlg.show(self)
+
+    def on_startup_toggled(self, btn: Gtk.CheckButton) -> None:
+        self.cfg["show_at_startup"] = btn.get_active()
+        save_cfg(self.cfg)
+
+
+class App(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+        self.autostart = False
+
+    def do_command_line(self, cmdline):
+        args = cmdline.get_arguments()[1:]
+        self.autostart = "--autostart" in args
+        if self.autostart and (Path("/run/archiso").exists() or not load_cfg().get("show_at_startup", True)):
+            return 0  # live ISO shows the installer instead
+        self.activate()
+        return 0
+
+    def do_activate(self):
+        prov = Gtk.CssProvider()
+        prov.load_from_data(CSS)
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), prov,
+                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        win = self.get_active_window() or Welcome(self)
+        win.present()
+
+
+if __name__ == "__main__":
+    if "--version" in sys.argv:
+        print("noctoware-welcome 0.1")
+        sys.exit(0)
+    sys.exit(App().run(sys.argv))

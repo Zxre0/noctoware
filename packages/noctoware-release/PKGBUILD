@@ -1,5 +1,6 @@
 # Maintainer: Noctoware Project
-# Distribution identity: /etc/os-release, /etc/lsb-release, /etc/issue branding.
+# Distribution identity: /etc/os-release (Arch's stock /etc/issue already
+# prints PRETTY_NAME from it via \S{PRETTY_NAME}).
 pkgname=noctoware-release
 pkgver=0.1
 pkgrel=1
@@ -7,7 +8,6 @@ pkgdesc="Noctoware Linux release and identification files"
 arch=('any')
 url="https://github.com/noctoware/noctoware"
 license=('MIT')
-backup=('etc/issue')
 install=noctoware-release.install
 
 package() {
@@ -34,9 +34,5 @@ SUPPORT_URL="https://github.com/${NOCTO_GH_OWNER}/${NOCTO_GH_REPO}/discussions"
 BUG_REPORT_URL="https://github.com/${NOCTO_GH_OWNER}/${NOCTO_GH_REPO}/issues"
 OSR
   install -Dm644 /dev/stdin "$pkgdir/etc/noctoware-release" <<<"${NOCTO_PRETTY_NAME} ${NOCTO_VERSION_LABEL} (rolling)"
-  install -Dm644 /dev/stdin "$pkgdir/etc/issue" <<'ISSUE'
-\e[38;2;155;107;255mNoctoware Linux\e[0m \r (\l)
-
-ISSUE
   install -Dm644 "$root/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

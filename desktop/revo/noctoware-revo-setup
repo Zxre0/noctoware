@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# noctoware-revo-setup — fetch Revo Shell from upstream and install it as an
+# alternative Noctoware shell profile (default interface: macos).
+#
+# Revo Shell (https://github.com/vzbc/revo-shell) publishes no license, so
+# Noctoware does not redistribute it.  This tool downloads it directly from
+# its upstream for you, after you confirm, and runs its own installer.
+# Your HyDE configuration is saved first and stays available via
+#   noctoware-shell switch hyde
+#
+# Usage: noctoware-revo-setup [--interfaces macos,ii,...] [--latest] [--yes]
+set -euo pipefail
+REPO="https://github.com/vzbc/revo-shell.git"
+PIN="62e13cd38588c3cdbef5613d088b9c4a265b965b"   # tested with Noctoware 0.1
+DEST="${XDG_DATA_HOME:-$HOME/.local/share}/noctoware/revo-shell"
+interfaces="macos" latest=0 yes=0
+while (($#)); do
+    case "$1" in
+        --interfaces) interfaces="$2"; shift ;;
+        --latest) latest=1 ;;
+        --yes|-y) yes=1 ;;
+        -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+        *) echo "unknown option $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+[[ $EUID -ne 0 ]] || { echo "run as your normal user" >&2; exit 2; }
+command -v noctoware-shell >/dev/null || { echo "noctoware-shell missing" >&2; exit 3; }
+
+cat <<MSG
+Revo Shell is a third-party Hyprland/Quickshell desktop by its upstream author.
+It has NO license file: Noctoware cannot ship it, and you should only use it
+in line with its author's wishes.  Source: $REPO
+This will:
+  1. save your current HyDE configuration as the "hyde" shell profile
+  2. download Revo Shell ($([[ $latest -eq 1 ]] && echo latest || echo "commit ${PIN:0:7}")) to $DEST
+  3. run Revo's installer for interface(s): $interfaces
+     (it may ask for your sudo password to install packages such as quickshell)
+MSG
+if [[ $yes -ne 1 ]]; then
+    read -r -p "Continue? [y/N] " a; [[ "$a" =~ ^[Yy]$ ]] || exit 1
+fi
+
+store="${XDG_DATA_HOME:-$HOME/.local/share}/noctoware/shells"
+mkdir -p "$store"
+if [[ "$(cat "$store/active" 2>/dev/null || echo hyde)" == hyde ]]; then
+    # snapshot HyDE before Revo's installer rewrites ~/.config
+    rm -rf "$store/hyde.tmp"; mkdir -p "$store/hyde.tmp"
+    for d in hypr rofi kitty quickshell waybar; do
+        if [[ -e "$HOME/.config/$d" ]]; then cp -a "$HOME/.config/$d" "$store/hyde.tmp/$d"; fi
+    done
+    rm -rf "$store/hyde"; mv "$store/hyde.tmp" "$store/hyde"
+fi
+
+if [[ -d "$DEST/.git" ]]; then
+    git -C "$DEST" fetch --quiet origin
+else
+    git clone --quiet "$REPO" "$DEST"
+fi
+if [[ $latest -eq 1 ]]; then git -C "$DEST" checkout --quiet origin/HEAD; else git -C "$DEST" checkout --quiet "$PIN"; fi
+
+(cd "$DEST" && ./install.sh --shells "$interfaces")
+echo revo >"$store/active"
+# keep a pristine copy of the freshly installed Revo profile too
+rm -rf "$store/revo"; mkdir -p "$store/revo"
+for d in hypr rofi kitty quickshell waybar; do
+    if [[ -e "$HOME/.config/$d" ]]; then cp -a "$HOME/.config/$d" "$store/revo/$d"; fi
+done
+command -v hyprpm >/dev/null && { hyprpm update || echo "hyprpm update failed: plugins rebuild at next login"; }
+echo
+echo "Revo Shell installed and active. Log out and back in."
+echo "Switch back any time:  noctoware-shell switch hyde"

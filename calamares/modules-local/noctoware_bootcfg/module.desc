@@ -1,0 +1,5 @@
+---
+type:       "job"
+name:       "noctoware_bootcfg"
+interface:  "python"
+script:     "main.py"

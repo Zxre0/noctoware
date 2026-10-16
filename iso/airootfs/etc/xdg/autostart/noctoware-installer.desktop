@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Install Noctoware Linux
+Exec=noctoware-installer
+Icon=noctoware
+NoDisplay=true

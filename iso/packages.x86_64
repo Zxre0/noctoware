@@ -1,0 +1,92 @@
+# Noctoware live ISO package list.  Everything here is also what an offline
+# installation copies to disk; hardware-specific packages are pruned/added by
+# noctoware-gpu during installation.
+
+## base system + CachyOS kernels (linux-cachyos-lts = recovery kernel)
+base
+linux-cachyos
+linux-cachyos-headers
+linux-cachyos-lts
+linux-firmware
+amd-ucode
+intel-ucode
+mkinitcpio
+mkinitcpio-archiso
+sof-firmware
+alsa-firmware
+cachyos-keyring
+cachyos-mirrorlist
+
+## Noctoware
+noctoware-desktop
+noctoware-calamares-config
+
+## boot loaders (systemd-boot is part of systemd; GRUB for BIOS installs)
+syslinux
+grub
+efibootmgr
+memtest86+
+memtest86+-efi
+edk2-shell
+
+## storage / filesystems
+btrfs-progs
+dosfstools
+e2fsprogs
+exfatprogs
+ntfs-3g
+cryptsetup
+lvm2
+mdadm
+gptfdisk
+parted
+smartmontools
+nvme-cli
+zram-generator
+
+## networking
+networkmanager
+network-manager-applet
+wpa_supplicant
+iwd
+modemmanager
+openssh
+reflector
+
+## graphics: generic Mesa stack for every vendor in the live session
+## (installation keeps only what the detected hardware needs)
+mesa
+lib32-mesa
+vulkan-icd-loader
+lib32-vulkan-icd-loader
+vulkan-radeon
+lib32-vulkan-radeon
+vulkan-intel
+lib32-vulkan-intel
+vulkan-nouveau
+lib32-vulkan-nouveau
+vulkan-swrast
+lib32-vulkan-swrast
+vulkan-virtio
+lib32-vulkan-virtio
+intel-media-driver
+vpl-gpu-rt
+
+## virtual machine guest support (pruned on real hardware)
+spice-vdagent
+qemu-guest-agent
+open-vm-tools
+virtualbox-guest-utils
+
+## utilities
+sudo
+zsh
+less
+nano
+vim
+rsync
+usbutils
+pciutils
+man-db
+man-pages
+xdg-utils

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Noctoware Welcome
+Comment=Updates, drivers, Steam, AI tools and system information
+Exec=noctoware-welcome
+Icon=noctoware
+Terminal=false
+Categories=System;Settings;
+Keywords=welcome;update;gpu;driver;steam;claude;codex;theme;noctoware;
+StartupNotify=true

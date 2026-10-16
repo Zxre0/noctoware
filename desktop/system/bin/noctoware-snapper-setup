@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# noctoware-snapper-setup — create the snapper "root" config on a Btrfs root.
+# Idempotent. Run as root on the installed system (the installer runs it in
+# the target chroot).  Expects the Noctoware layout: @ on /, @snapshots on
+# /.snapshots (see docs/RECOVERY.md).
+set -euo pipefail
+[[ $EUID -eq 0 ]] || { echo "must run as root" >&2; exit 1; }
+fstype="$(findmnt -no FSTYPE /)"
+if [[ "$fstype" != btrfs ]]; then
+    echo "root filesystem is $fstype, not btrfs: snapshots not configured"; exit 0
+fi
+if [[ -f /etc/snapper/configs/root ]]; then
+    echo "snapper root config already exists"; exit 0
+fi
+had_mount=0
+if mountpoint -q /.snapshots; then had_mount=1; umount /.snapshots; fi
+[[ -d /.snapshots ]] && rmdir /.snapshots
+snapper --no-dbus -c root create-config -t noctoware /
+if [[ $had_mount -eq 1 ]] || grep -qE '[[:space:]]/\.snapshots[[:space:]]' /etc/fstab; then
+    # snapper created a nested .snapshots subvolume; use the @snapshots one instead
+    btrfs subvolume delete /.snapshots >/dev/null
+    mkdir /.snapshots
+    mount /.snapshots
+fi
+chmod 750 /.snapshots
+chgrp wheel /.snapshots 2>/dev/null || true
+systemctl enable snapper-cleanup.timer >/dev/null 2>&1 || true
+echo "snapper configured for /"

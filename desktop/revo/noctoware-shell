@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# noctoware-shell — switch between the HyDE shell and Revo Shell on Hyprland.
+#
+#   noctoware-shell status
+#   noctoware-shell switch hyde|revo
+#   noctoware-shell interface <id>      choose the Revo interface (default: macos)
+#   noctoware-shell interfaces          list Revo interfaces available locally
+#   noctoware-shell doctor              Revo health check (hyprpm plugins, etc.)
+#
+# Both shells own ~/.config/{hypr,rofi,kitty,quickshell}.  Each shell keeps a
+# full copy of those directories under ~/.local/share/noctoware/shells/<name>;
+# switching saves the active copy and restores the other, so neither shell's
+# configuration is ever lost.  Log out and back in after switching.
+set -euo pipefail
+STORE="${XDG_DATA_HOME:-$HOME/.local/share}/noctoware/shells"
+CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
+DIRS=(hypr rofi kitty quickshell waybar)
+REVO_SRC="${XDG_DATA_HOME:-$HOME/.local/share}/noctoware/revo-shell"
+active_file="$STORE/active"
+
+active() { cat "$active_file" 2>/dev/null || echo hyde; }
+die() { echo "noctoware-shell: $*" >&2; exit 1; }
+
+save_profile() {  # $1 = name
+    local p="$STORE/$1"; rm -rf "$p.tmp"; mkdir -p "$p.tmp"
+    for d in "${DIRS[@]}"; do
+        if [[ -e "$CFG/$d" ]]; then cp -a "$CFG/$d" "$p.tmp/$d"; fi
+    done
+    rm -rf "$p"; mv "$p.tmp" "$p"
+}
+restore_profile() {  # $1 = name
+    local p="$STORE/$1"; [[ -d "$p" ]] || die "no saved profile for $1"
+    for d in "${DIRS[@]}"; do
+        rm -rf "${CFG:?}/$d"
+        if [[ -e "$p/$d" ]]; then cp -a "$p/$d" "$CFG/$d"; fi
+    done
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+    status)
+        echo "active shell: $(active)"
+        for s in hyde revo; do
+            if [[ -d "$STORE/$s" || "$(active)" == "$s" ]]; then echo "available:    $s"; fi
+        done
+        if [[ -f "$CFG/hypr/.revo_default_shell" && "$(active)" == revo ]]; then
+            echo "revo interface: $(cat "$CFG/hypr/.revo_default_shell")"
+        fi
+        if [[ ! -d "$REVO_SRC" ]]; then echo "Revo Shell not set up (run noctoware-revo-setup)"; fi
+        ;;
+    switch)
+        target="${2:-}"; [[ "$target" == hyde || "$target" == revo ]] || die "usage: switch hyde|revo"
+        cur="$(active)"
+        [[ "$cur" == "$target" ]] && { echo "$target is already active"; exit 0; }
+        [[ -d "$STORE/$target" ]] || die "$target has not been set up yet"
+        mkdir -p "$STORE"
+        save_profile "$cur"
+        restore_profile "$target"
+        echo "$target" >"$active_file"
+        echo "Switched to $target. Log out and back in (or run: hyprctl reload) to apply."
+        ;;
+    interface)
+        id="${2:-macos}"
+        [[ "$(active)" == revo ]] || die "switch to revo first"
+        [[ -d "$CFG/quickshell/$id" ]] || die "interface '$id' is not installed (noctoware-revo-setup --interfaces $id)"
+        toggle="$CFG/hypr/scripts/toggle_qs_dots.sh"
+        if [[ -x "$toggle" && -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then "$toggle" "$id"; fi
+        printf '%s\n' "$id" >"$CFG/hypr/.revo_default_shell"
+        echo "Revo interface set to $id (applies at next login if not running now)."
+        ;;
+    interfaces)
+        [[ -d "$CFG/quickshell" ]] || die "no quickshell configs found"
+        find "$CFG/quickshell" -mindepth 2 -maxdepth 2 -name shell.qml -printf '%h\n' | xargs -rn1 basename | sort
+        ;;
+    doctor)
+        [[ -x "$REVO_SRC/install.sh" ]] || die "Revo Shell not set up"
+        (cd "$REVO_SRC" && ./install.sh --check)
+        ;;
+    -h|--help|help) sed -n '2,15p' "$0" ;;
+    *) die "unknown command $cmd (see --help)" ;;
+esac

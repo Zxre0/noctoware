@@ -1,0 +1,28 @@
+# Maintainer: Noctoware Project
+pkgname=noctoware-sddm-theme
+pkgver=0.1
+pkgrel=1
+pkgdesc="Noctoware Linux SDDM login theme and defaults"
+arch=('any')
+url="https://github.com/noctoware/noctoware"
+license=('MIT' 'CC-BY-SA-4.0')
+depends=('sddm' 'qt6-declarative' 'qt6-svg' 'noctoware-branding' 'noto-fonts' 'xorg-server')
+backup=('etc/sddm.conf.d/10-noctoware.conf')
+
+package() {
+  local d; d="$(realpath "$startdir/../../desktop/sddm")"
+  install -d "$pkgdir/usr/share/sddm/themes"
+  cp -r "$d/noctoware" "$pkgdir/usr/share/sddm/themes/noctoware"
+  install -Dm644 /dev/stdin "$pkgdir/etc/sddm.conf.d/10-noctoware.conf" <<CONF
+# Noctoware defaults. Local changes belong in a later-sorting file
+# (e.g. /etc/sddm.conf.d/50-local.conf) or this file (it is a backup file).
+[Theme]
+Current=noctoware
+CursorTheme=Bibata-Modern-Ice
+
+[General]
+# X11 greeter: the most compatible choice across NVIDIA/AMD/Intel.  Every
+# desktop session itself runs on Wayland.
+DisplayServer=x11
+CONF
+}

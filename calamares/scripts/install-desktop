@@ -1,0 +1,23 @@
+#!/bin/bash
+# install-desktop ROOT CHOICE   (runs on the live host, acts on ROOT)
+# CHOICE: hyprland | hyprland-plasma
+set -euo pipefail
+root="$1" choice="${2:-hyprland}"
+offline=/opt/noctoware/offline/pkg
+echo "[noctoware install-desktop] choice=$choice"
+case "$choice" in
+    hyprland|"") exit 0 ;;
+    hyprland-plasma) pkgs=(noctoware-plasma) ;;
+    *) echo "unknown desktop choice '$choice'" >&2; exit 2 ;;
+esac
+cache=()
+if [[ -d "$offline" ]]; then
+    mkdir -p "$root/var/cache/pacman/noctoware-offline"
+    mount --bind "$offline" "$root/var/cache/pacman/noctoware-offline"
+    trap 'umount "$root/var/cache/pacman/noctoware-offline"' EXIT
+    cache=(--cachedir /var/cache/pacman/noctoware-offline --cachedir /var/cache/pacman/pkg)
+fi
+if ! arch-chroot "$root" pacman -S --noconfirm --needed "${cache[@]}" "${pkgs[@]}"; then
+    echo "offline install incomplete, trying the network mirrors"
+    arch-chroot "$root" pacman -Sy --noconfirm --needed "${pkgs[@]}"
+fi

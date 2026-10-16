@@ -1,0 +1,26 @@
+# Maintainer: Noctoware Project
+# System integration: GPU detection/driver selection, snapshots and recovery.
+pkgname=noctoware-system
+pkgver=0.1
+pkgrel=1
+pkgdesc="Noctoware Linux GPU detection, Btrfs snapshots and recovery tools"
+arch=('any')
+url="https://github.com/noctoware/noctoware"
+license=('MIT')
+depends=('python' 'pciutils' 'arch-install-scripts' 'btrfs-progs' 'snapper' 'snap-pac'
+         'noctoware-release' 'noctoware-keyring' 'noctoware-mirrorlist'
+         'cachyos-keyring' 'cachyos-mirrorlist')
+optdepends=('grub-btrfs: boot into snapshots from the GRUB menu (BIOS installs)'
+            'btrfs-assistant: graphical snapshot browser'
+            'sbctl: Secure Boot key management')
+
+package() {
+  local d; d="$(realpath "$startdir/../../desktop")"
+  install -Dm755 "$d/gpu/noctoware-gpu" "$pkgdir/usr/bin/noctoware-gpu"
+  install -Dm755 "$d/system/bin/noctoware-snapper-setup" "$pkgdir/usr/bin/noctoware-snapper-setup"
+  install -Dm755 "$d/system/bin/noctoware-rollback" "$pkgdir/usr/bin/noctoware-rollback"
+  install -Dm755 "$d/system/bin/noctoware-boot-backup" "$pkgdir/usr/lib/noctoware/noctoware-boot-backup"
+  install -Dm644 "$d/system/hooks/04-noctoware-boot-backup.hook" "$pkgdir/usr/share/libalpm/hooks/04-noctoware-boot-backup.hook"
+  install -Dm644 "$d/system/snapper/noctoware" "$pkgdir/usr/share/snapper/config-templates/noctoware"
+  install -dm755 "$pkgdir/var/lib/noctoware/boot-backup"
+}

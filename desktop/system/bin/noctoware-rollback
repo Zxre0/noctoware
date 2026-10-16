@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# noctoware-rollback — restore the root subvolume (@) from a snapper snapshot.
+#
+#   noctoware-rollback --list
+#   noctoware-rollback <snapshot-number> [--yes]
+#
+# Works from the running system or from the Noctoware live ISO (pass --device
+# /dev/XXX for the Btrfs partition when running from the ISO).  The current @
+# is kept as @.broken-<timestamp>, never deleted.  Kernel and initramfs files
+# saved inside the snapshot (/var/lib/noctoware/boot-backup) are copied back
+# to /boot so the bootloader starts the kernel matching the restored modules.
+set -euo pipefail
+die() { echo "noctoware-rollback: $*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || die "must run as root"
+
+num="" yes=0 device="" list=0 boot="/boot"
+while (($#)); do
+    case "$1" in
+        --list) list=1 ;;
+        --yes|-y) yes=1 ;;
+        --device) device="$2"; shift ;;
+        --boot) boot="$2"; shift ;;
+        -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+        *) [[ "$1" =~ ^[0-9]+$ ]] || die "bad argument: $1"; num="$1" ;;
+    esac
+    shift
+done
+
+if [[ -z "$device" ]]; then
+    [[ "$(findmnt -no FSTYPE /)" == btrfs ]] || die "root is not btrfs; use --device from the live ISO"
+    device="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
+fi
+top="$(mktemp -d)"
+trap 'umount "$top" 2>/dev/null; rmdir "$top"' EXIT
+mount -o subvolid=5 "$device" "$top"
+[[ -d "$top/@snapshots" ]] || die "no @snapshots subvolume on $device"
+
+if [[ $list -eq 1 || -z "$num" ]]; then
+    printf '%-6s %-20s %s\n' NUM DATE DESCRIPTION
+    for info in "$top"/@snapshots/*/info.xml; do
+        n="$(basename "$(dirname "$info")")"
+        d="$(sed -n 's:.*<date>\(.*\)</date>.*:\1:p' "$info")"
+        desc="$(sed -n 's:.*<description>\(.*\)</description>.*:\1:p' "$info")"
+        printf '%-6s %-20s %s\n' "$n" "$d" "$desc"
+    done | sort -n
+    exit 0
+fi
+
+snap="$top/@snapshots/$num/snapshot"
+[[ -d "$snap" ]] || die "snapshot $num not found"
+echo "Restore @ from snapshot $num on $device?"
+echo "  current @ will be renamed to @.broken-$(date +%Y%m%d-%H%M%S)"
+if [[ $yes -ne 1 ]]; then
+    read -r -p "Type 'rollback' to continue: " ans
+    [[ "$ans" == rollback ]] || die "aborted"
+fi
+stamp="$(date +%Y%m%d-%H%M%S)"
+mv "$top/@" "$top/@.broken-$stamp"
+btrfs subvolume snapshot "$snap" "$top/@" >/dev/null
+bk="$top/@/var/lib/noctoware/boot-backup"
+if [[ -d "$bk" ]] && compgen -G "$bk/vmlinuz-*" >/dev/null; then
+    if mountpoint -q "$boot" || [[ -n "${NOCTO_BOOT_DIR_OK:-}" ]]; then
+        cp -f "$bk"/vmlinuz-* "$bk"/initramfs-* "$boot"/ 2>/dev/null || true
+        echo "restored kernel/initramfs from snapshot into $boot"
+    else
+        echo "WARNING: $boot is not mounted; copy $bk/* to your ESP manually"
+    fi
+else
+    echo "WARNING: snapshot has no saved kernel; if boot fails, select the LTS entry and run 'pacman -S linux-cachyos'"
+fi
+echo "Rollback prepared. Reboot to use snapshot $num. Old root kept as @.broken-$stamp"

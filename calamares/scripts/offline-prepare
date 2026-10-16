@@ -1,0 +1,13 @@
+#!/bin/bash
+# offline-prepare ROOT   (live host side, before any package is installed)
+# Seed the target's pacman sync databases with the snapshot taken when the
+# ISO was built, so the packages in the ISO's offline cache resolve exactly
+# (their signatures are verified against these databases).
+set -euo pipefail
+root="$1" offline=/opt/noctoware/offline
+[[ -d "$offline/sync" ]] || { echo "no offline sync snapshot; online install only"; exit 0; }
+install -d "$root/var/lib/pacman/sync"
+for db in "$offline"/sync/*.db; do
+    cp -f "$db" "$root/var/lib/pacman/sync/"
+done
+echo "[noctoware offline-prepare] seeded $(ls "$offline"/sync/*.db | wc -l) sync databases"

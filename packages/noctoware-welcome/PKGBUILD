@@ -1,0 +1,18 @@
+# Maintainer: Noctoware Project
+pkgname=noctoware-welcome
+pkgver=0.1
+pkgrel=1
+pkgdesc="Noctoware Linux welcome app: updates, GPU drivers, Steam, AI tools, themes, docs"
+arch=('any')
+url="https://github.com/noctoware/noctoware"
+license=('MIT')
+depends=('python' 'python-gobject' 'gtk4' 'pacman-contrib' 'fastfetch' 'noctoware-system' 'xdg-utils')
+
+package() {
+  local root d; root="$(realpath "$startdir/../..")"; d="$root/desktop/welcome"
+  install -Dm755 "$d/noctoware-welcome" "$pkgdir/usr/bin/noctoware-welcome"
+  install -Dm644 "$d/noctoware-welcome.desktop" "$pkgdir/usr/share/applications/noctoware-welcome.desktop"
+  install -Dm644 "$d/noctoware-welcome-autostart.desktop" "$pkgdir/etc/xdg/autostart/noctoware-welcome.desktop"
+  install -d "$pkgdir/usr/share/doc/noctoware"
+  cp "$root"/docs/*.md "$pkgdir/usr/share/doc/noctoware/" 2>/dev/null || true
+}

@@ -1,0 +1,20 @@
+# Maintainer: Noctoware Project
+#
+# Optional Revo Shell integration.  Contains ONLY Noctoware's own scripts:
+# Revo Shell itself has no license, so it is never redistributed.  The user
+# runs noctoware-revo-setup to fetch it from upstream (see docs/REVO.md).
+# Not included in public ISO builds.
+pkgname=noctoware-revo
+pkgver=0.1
+pkgrel=1
+pkgdesc="Noctoware shell switcher and on-demand Revo Shell installer (Revo fetched from upstream)"
+arch=('any')
+url="https://github.com/noctoware/noctoware"
+license=('MIT')
+depends=('noctoware-hyde' 'hyprland' 'hyprpm' 'quickshell' 'git' 'bash')
+
+package() {
+  local d; d="$(realpath "$startdir/../../desktop/revo")"
+  install -Dm755 "$d/noctoware-shell" "$pkgdir/usr/bin/noctoware-shell"
+  install -Dm755 "$d/noctoware-revo-setup" "$pkgdir/usr/bin/noctoware-revo-setup"
+}

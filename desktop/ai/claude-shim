@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Fallback `claude` command (lowest PATH priority).  Hands off to the real
+# per-user Claude Code install, or offers to install it with consent.
+real="$HOME/.local/bin/claude"
+if [[ -x "$real" ]]; then exec "$real" "$@"; fi
+if [[ -t 0 && -t 1 ]]; then
+    echo "Claude Code is not installed for $USER yet."
+    if noctoware-claude-setup && [[ -x "$real" ]]; then exec "$real" "$@"; fi
+    exit 1
+fi
+echo "claude: Claude Code is not installed. Run 'noctoware-claude-setup' in a terminal." >&2
+exit 127

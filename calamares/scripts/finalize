@@ -1,0 +1,22 @@
+#!/bin/bash
+# Runs inside the target as the last step.
+set -uo pipefail
+# SDDM: preselect "Noctoware Hyprland" for the first login (users can pick
+# Plasma (Wayland) or another session from the menu; SDDM remembers it).
+install -d -o sddm -g sddm /var/lib/sddm 2>/dev/null || install -d /var/lib/sddm
+cat >/var/lib/sddm/state.conf <<STATE
+[Last]
+Session=/usr/share/wayland-sessions/noctoware-hyprland.desktop
+STATE
+chown sddm:sddm /var/lib/sddm/state.conf 2>/dev/null || true
+
+# Btrfs snapshots + pacman pre/post hooks (snap-pac)
+if [[ "$(findmnt -no FSTYPE /)" == btrfs ]]; then
+    noctoware-snapper-setup || echo "snapper setup failed; see docs/RECOVERY.md"
+    # first snapshot = the freshly installed system
+    snapper --no-dbus -c root create -d "Noctoware fresh install" -c number --userdata important=yes 2>/dev/null || true
+fi
+
+# make sure the locale chosen in the installer is generated
+locale-gen >/dev/null 2>&1 || true
+exit 0

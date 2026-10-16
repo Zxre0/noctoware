@@ -1,0 +1,8 @@
+#!/bin/bash
+# Live ISO only: create the passwordless live user before SDDM starts.
+set -eu
+if ! id liveuser >/dev/null 2>&1; then
+    useradd -m -U -s /usr/bin/zsh -c "Noctoware Live" \
+        -G wheel,video,audio,input,network,storage,lp,rfkill liveuser
+    passwd -d liveuser >/dev/null
+fi

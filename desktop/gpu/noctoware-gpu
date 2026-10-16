@@ -133,7 +133,9 @@ def parse_mock_ids(spec: str) -> list[Gpu]:
         if len(parts) not in (2, 3):
             raise ValueError(f"bad mock id {item!r}, expected vendor:device[:class]")
         cls = int(parts[2], 16) if len(parts) == 3 else 0x030000
-        gpus.append(Gpu(f"mock:{i}", int(parts[0], 16), int(parts[1], 16), cls, i == 0))
+        if cls >> 16 != 0x03:  # same filter as scan_sysfs: display controllers only
+            continue
+        gpus.append(Gpu(f"mock:{i}", int(parts[0], 16), int(parts[1], 16), cls, not gpus))
     return gpus
 
 
@@ -248,9 +250,9 @@ def apply_plan(plan: Plan, root: Path, offline_cache: Path | None) -> None:
     """Install/remove packages in the target system mounted at *root*."""
     if not (root / "etc" / "os-release").exists():
         raise SystemExit(f"{root} does not look like an installed system")
-    chroot = ["arch-chroot", str(root)]
+    chroot = [] if root.resolve() == Path("/") else ["arch-chroot", str(root)]
     pac = ["pacman", "--noconfirm", "--needed"]
-    if offline_cache and offline_cache.is_dir():
+    if chroot and offline_cache and offline_cache.is_dir():
         # Bind the ISO's package cache into the target and let pacman pick
         # packages from there (verified against the synced DB signatures).
         cache_in_root = root / "var" / "cache" / "pacman" / "noctoware-offline"
@@ -280,7 +282,7 @@ def apply_plan(plan: Plan, root: Path, offline_cache: Path | None) -> None:
         state.parent.mkdir(parents=True, exist_ok=True)
         state.write_text(json.dumps(plan.to_dict(), indent=2) + "\n")
     finally:
-        if offline_cache and offline_cache.is_dir():
+        if chroot and offline_cache and offline_cache.is_dir():
             subprocess.run(["umount", str(root / "var/cache/pacman/noctoware-offline")])
 
 

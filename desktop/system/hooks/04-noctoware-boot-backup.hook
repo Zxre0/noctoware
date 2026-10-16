@@ -1,0 +1,12 @@
+# Runs before snap-pac's 05-snap-pac-pre.hook.
+[Trigger]
+Operation = Upgrade
+Operation = Install
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Saving current kernel and initramfs for snapshot rollbacks...
+When = PreTransaction
+Exec = /usr/lib/noctoware/noctoware-boot-backup

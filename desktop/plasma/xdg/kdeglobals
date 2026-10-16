@@ -1,0 +1,10 @@
+# Noctoware system defaults (lowest priority: any user setting overrides these)
+[General]
+ColorScheme=Noctoware
+TerminalApplication=konsole
+
+[Icons]
+Theme=breeze-dark
+
+[KDE]
+LookAndFeelPackage=org.noctoware.desktop

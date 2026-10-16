@@ -1,0 +1,41 @@
+# Noctoware Linux installer branding.  Artwork CC-BY-SA-4.0, code MIT.
+---
+componentName:  noctoware
+welcomeStyleCalamares:   true
+welcomeExpandingLogo:   true
+windowExpanding:    normal
+windowSize: 1024px,680px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+
+strings:
+    productName:         "Noctoware Linux"
+    shortProductName:    "Noctoware"
+    version:             "0.1 Alpha"
+    shortVersion:        "0.1"
+    versionedName:       "Noctoware Linux 0.1 Alpha"
+    shortVersionedName:  "Noctoware 0.1"
+    bootloaderEntryName: "Noctoware"
+    productUrl:          "https://github.com/noctoware/noctoware"
+    supportUrl:          "https://github.com/noctoware/noctoware/discussions"
+    knownIssuesUrl:      "https://github.com/noctoware/noctoware/blob/main/docs/KNOWN_ISSUES.md"
+    releaseNotesUrl:     "https://github.com/noctoware/noctoware/blob/main/docs/PROGRESS.md"
+    donateUrl:           ""
+
+images:
+    productLogo:         "logo.png"
+    productIcon:         "logo.png"
+    productWelcome:      "welcome.png"
+
+slideshow:              "show.qml"
+slideshowAPI:           2
+
+style:
+   SidebarBackground:        "#07040c"
+   SidebarText:              "#e9ddff"
+   SidebarTextCurrent:       "#0b0712"
+   SidebarBackgroundCurrent: "#9b6bff"
+
+uploadServer :
+    type :    "none"

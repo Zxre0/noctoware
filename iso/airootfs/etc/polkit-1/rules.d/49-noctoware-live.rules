@@ -1,0 +1,4 @@
+// Live ISO only (removed by the installer): no password prompts for liveuser.
+polkit.addRule(function(action, subject) {
+    if (subject.user == "liveuser") { return polkit.Result.YES; }
+});

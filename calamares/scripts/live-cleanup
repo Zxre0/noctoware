@@ -1,0 +1,43 @@
+#!/bin/bash
+# Runs inside the target (chroot) right after unpackfs.
+# Removes everything that only makes sense on the live ISO and re-creates the
+# pacman keyring (the live one lives on a tmpfs and is not copied).
+set -uo pipefail
+log() { echo "[noctoware live-cleanup] $*"; }
+
+# 1. live-only configuration
+rm -f /etc/sudoers.d/90-noctoware-live \
+      /etc/sddm.conf.d/90-noctoware-live.conf \
+      /etc/polkit-1/rules.d/49-noctoware-live.rules \
+      /etc/xdg/autostart/noctoware-installer.desktop \
+      /etc/mkinitcpio.conf.d/archiso.conf \
+      /etc/systemd/system/getty@tty1.service.d/autologin.conf \
+      /etc/systemd/system/etc-pacman.d-gnupg.mount \
+      /etc/systemd/system/pacman-init.service \
+      /etc/systemd/system/multi-user.target.wants/pacman-init.service \
+      /etc/systemd/journald.conf.d/volatile-storage.conf \
+      /etc/systemd/logind.conf.d/do-not-suspend.conf \
+      /etc/motd \
+      /etc/systemd/system/noctoware-live-setup.service \
+      /etc/systemd/system/multi-user.target.wants/noctoware-live-setup.service \
+      /usr/local/bin/noctoware-live-setup
+rmdir /etc/systemd/system/getty@tty1.service.d 2>/dev/null || true
+rm -rf /root/.automated_script.sh /root/.zlogin
+# live session logs, caches and host keys must not leak into the install
+rm -rf /var/log/journal/* /var/cache/pacman/pkg/* /home/liveuser/.cache 2>/dev/null
+rm -f /etc/ssh/ssh_host_* 2>/dev/null
+
+# 2. pacman keyring
+log "initialising pacman keyring"
+rm -rf /etc/pacman.d/gnupg
+pacman-key --init
+pacman-key --populate archlinux cachyos noctoware
+
+# 3. the installer itself is not part of the installed system
+log "removing installer packages"
+pacman -Rns --noconfirm noctoware-calamares-config cachyos-calamares 2>/dev/null ||
+    pacman -Rdd --noconfirm noctoware-calamares-config cachyos-calamares 2>/dev/null || true
+for p in noctoware-live; do
+    pacman -Q "$p" >/dev/null 2>&1 && pacman -Rns --noconfirm "$p"
+done
+exit 0

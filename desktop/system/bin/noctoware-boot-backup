@@ -1,0 +1,11 @@
+#!/bin/sh
+# Called by a PreTransaction pacman hook (before snap-pac's pre snapshot) so
+# every snapshot carries the kernel/initramfs that match its /usr/lib/modules.
+dest=/var/lib/noctoware/boot-backup
+mkdir -p "$dest"
+for f in /boot/vmlinuz-* /boot/initramfs-*; do
+    [ -f "$f" ] || continue
+    case "$f" in *-fallback.img) continue ;; esac
+    cp -p "$f" "$dest/" 2>/dev/null || true
+done
+exit 0

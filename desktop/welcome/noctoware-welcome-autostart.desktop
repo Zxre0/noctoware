@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Noctoware Welcome
+Exec=noctoware-welcome --autostart
+Icon=noctoware
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-Phase=Applications
+X-KDE-autostart-phase=2

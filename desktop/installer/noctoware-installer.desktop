@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Install Noctoware Linux
+Comment=Install Noctoware Linux to this computer
+Exec=noctoware-installer
+Icon=noctoware
+Terminal=false
+Categories=System;
+Keywords=install;installer;calamares;noctoware;

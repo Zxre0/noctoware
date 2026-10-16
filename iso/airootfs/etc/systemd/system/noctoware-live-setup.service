@@ -1,0 +1,12 @@
+[Unit]
+Description=Noctoware live user setup
+Before=display-manager.service systemd-user-sessions.service
+ConditionPathExists=/run/archiso
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/noctoware-live-setup
+
+[Install]
+WantedBy=multi-user.target

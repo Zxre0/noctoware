@@ -1,0 +1,28 @@
+#!/bin/bash
+# Runs inside the target.  archiso replaced the kernel presets with live-ISO
+# ones and keeps the kernel image only on the ISO; put the stock layout back.
+set -euo pipefail
+shopt -s nullglob
+rm -f /etc/mkinitcpio.conf.d/archiso.conf
+found=0
+for pb in /usr/lib/modules/*/pkgbase; do
+    kdir="${pb%/pkgbase}"; pkgbase="$(<"$pb")"
+    found=1
+    install -Dm644 "$kdir/vmlinuz" "/boot/vmlinuz-$pkgbase"
+    cat >"/etc/mkinitcpio.d/$pkgbase.preset" <<PRESET
+# mkinitcpio preset file for the '$pkgbase' package (written by the Noctoware installer)
+#ALL_config="/etc/mkinitcpio.conf"
+ALL_kver="/boot/vmlinuz-$pkgbase"
+
+PRESETS=('default' 'fallback')
+
+default_image="/boot/initramfs-$pkgbase.img"
+fallback_image="/boot/initramfs-$pkgbase-fallback.img"
+fallback_options="-S autodetect"
+PRESET
+    echo "[noctoware kernel-setup] $pkgbase ($(basename "$kdir"))"
+done
+[[ $found -eq 1 ]] || { echo "no kernels found in /usr/lib/modules" >&2; exit 1; }
+# stale archiso images
+rm -f /boot/initramfs-*-archiso*.img
+mkinitcpio -P

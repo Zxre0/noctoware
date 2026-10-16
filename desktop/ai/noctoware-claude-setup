@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# noctoware-claude-setup — install Anthropic's Claude Code for this user.
+#
+# Claude Code is proprietary ("All rights reserved", use subject to Anthropic's
+# Commercial Terms), so Noctoware does not redistribute it.  This helper runs
+# Anthropic's official native installer *after you agree*, exactly as
+# documented at https://code.claude.com/docs/en/setup :
+#     curl -fsSL https://claude.ai/install.sh | bash
+# It installs to ~/.local/bin/claude and keeps itself updated.  Noctoware
+# never sees or stores your Anthropic credentials; you log in inside `claude`.
+#
+# Usage: noctoware-claude-setup [--yes] [--stable] [--check]
+set -euo pipefail
+INSTALL_URL="https://claude.ai/install.sh"
+TERMS_URL="https://www.anthropic.com/legal/commercial-terms"
+bin="$HOME/.local/bin/claude"
+
+yes=0 channel="" check=0
+for a in "$@"; do
+    case "$a" in
+        --yes|-y) yes=1 ;;
+        --stable) channel=stable ;;
+        --check) check=1 ;;
+        -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+        *) echo "unknown option: $a" >&2; exit 2 ;;
+    esac
+done
+
+if [[ $check -eq 1 ]]; then
+    if [[ -x "$bin" ]]; then "$bin" --version; exit 0; fi
+    echo "not installed"; exit 1
+fi
+[[ $EUID -ne 0 ]] || { echo "Run as your normal user (Claude Code installs per user)." >&2; exit 2; }
+
+if [[ -x "$bin" ]]; then
+    echo "Claude Code is already installed: $("$bin" --version 2>/dev/null || echo "$bin")"
+    exit 0
+fi
+
+cat <<MSG
+Claude Code (Anthropic) is not part of Noctoware and is not redistributed by it.
+This will download and run Anthropic's official installer:
+
+    curl -fsSL $INSTALL_URL | bash${channel:+ -s $channel}
+
+Claude Code is licensed by Anthropic; use is subject to: $TERMS_URL
+It needs a Claude Pro/Max/Team/Enterprise or Console account (you log in in
+your browser the first time you run 'claude').
+MSG
+if [[ $yes -ne 1 ]]; then
+    read -r -p "Download and install Claude Code now? [y/N] " ans
+    [[ "$ans" =~ ^[Yy]$ ]] || { echo "Cancelled. Run 'noctoware-claude-setup' any time."; exit 1; }
+fi
+command -v curl >/dev/null || { echo "curl is required" >&2; exit 3; }
+tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
+curl -fsSL --proto '=https' --tlsv1.2 "$INSTALL_URL" -o "$tmp" || { echo "download failed (are you online?)" >&2; exit 4; }
+bash "$tmp" ${channel:+"$channel"}
+if [[ -x "$bin" ]]; then
+    echo; echo "Installed: $("$bin" --version 2>/dev/null)"
+    echo "Run 'claude' in any terminal to log in with your own account."
+else
+    echo "The installer finished but $bin was not found." >&2; exit 4
+fi

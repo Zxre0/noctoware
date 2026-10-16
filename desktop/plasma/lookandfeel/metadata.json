@@ -1,0 +1,14 @@
+{
+  "KPackageStructure": "Plasma/LookAndFeel",
+  "KPlugin": {
+    "Authors": [ { "Name": "Noctoware Project" } ],
+    "Category": "",
+    "Description": "Noctoware purple-on-black Plasma defaults",
+    "Id": "org.noctoware.desktop",
+    "License": "MIT",
+    "Name": "Noctoware",
+    "Version": "0.1",
+    "Website": "https://github.com/noctoware/noctoware"
+  },
+  "X-Plasma-APIVersion": "2"
+}

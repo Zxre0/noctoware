@@ -1,0 +1,18 @@
+# Maintainer: Noctoware Project
+# The default Noctoware desktop: Hyprland + HyDE, SDDM, Steam, AI tools.
+pkgname=noctoware-desktop
+pkgver=0.1
+pkgrel=1
+pkgdesc="Noctoware Linux default desktop (Hyprland + HyDE)"
+arch=('any')
+url="https://github.com/noctoware/noctoware"
+license=('MIT')
+depends=('noctoware-system' 'noctoware-branding' 'noctoware-hyde' 'noctoware-sddm-theme'
+         'noctoware-welcome' 'noctoware-gaming' 'noctoware-ai-tools'
+         'linux-cachyos' 'linux-cachyos-headers' 'linux-cachyos-lts'
+         'sddm' 'kitty' 'fastfetch' 'networkmanager' 'bluez' 'bluez-utils'
+         'pipewire' 'pipewire-pulse' 'wireplumber'
+         'xdg-desktop-portal' 'xdg-desktop-portal-hyprland' 'xdg-desktop-portal-gtk'
+         'polkit' 'sudo' 'zsh' 'man-db' 'firefox')
+optdepends=('noctoware-plasma: KDE Plasma 6 as an additional desktop session'
+            'noctoware-revo: optional Revo Shell integration (fetched from upstream at your request)')

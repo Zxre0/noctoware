@@ -1,0 +1,20 @@
+# Maintainer: Noctoware Project
+# AI development tools.  OpenAI Codex CLI (Apache-2.0) comes from Arch [extra].
+# Claude Code is proprietary and NOT redistributed: noctoware-claude-setup runs
+# Anthropic's official installer per user, only after explicit consent.
+pkgname=noctoware-ai-tools
+pkgver=0.1
+pkgrel=1
+pkgdesc="Noctoware Linux AI development tools (Codex CLI, Claude Code setup, dev toolchain)"
+arch=('any')
+url="https://github.com/noctoware/noctoware"
+license=('MIT')
+depends=('openai-codex' 'git' 'nodejs' 'npm' 'python' 'python-pip' 'base-devel'
+         'ripgrep' 'curl' 'bash')
+
+package() {
+  local d; d="$(realpath "$startdir/../../desktop/ai")"
+  install -Dm755 "$d/noctoware-claude-setup" "$pkgdir/usr/bin/noctoware-claude-setup"
+  install -Dm755 "$d/claude-shim" "$pkgdir/usr/lib/noctoware/shims/claude"
+  install -Dm644 "$d/noctoware-ai.sh" "$pkgdir/etc/profile.d/noctoware-ai.sh"
+}

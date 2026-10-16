@@ -1,0 +1,34 @@
+# Build-time pacman.conf template.  scripts/build-iso.sh replaces @FROZEN@,
+# @LOCALREPO@ and @ARCHIVE_DATE@ and writes pacman.build.conf.
+# Repository order matches the installed system: [noctoware] first, then
+# [cachyos] (its NVIDIA modules pin CachyOS' nvidia-utils), then Arch.
+[options]
+HoldPkg     = pacman glibc
+Architecture = x86_64
+ParallelDownloads = 8
+SigLevel    = Required DatabaseOptional
+LocalFileSigLevel = Optional
+GPGDir      = @GPGDIR@
+
+[noctoware]
+SigLevel = Required DatabaseRequired
+Server = file://@LOCALREPO@
+
+[cachyos]
+Server = file://@FROZEN@/cachyos
+Server = https://mirror.cachyos.org/repo/$arch/$repo
+
+[core]
+Server = file://@FROZEN@/core
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://archive.archlinux.org/repos/@ARCHIVE_DATE@/$repo/os/$arch
+
+[extra]
+Server = file://@FROZEN@/extra
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://archive.archlinux.org/repos/@ARCHIVE_DATE@/$repo/os/$arch
+
+[multilib]
+Server = file://@FROZEN@/multilib
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://archive.archlinux.org/repos/@ARCHIVE_DATE@/$repo/os/$arch

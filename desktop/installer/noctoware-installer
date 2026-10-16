@@ -1,0 +1,11 @@
+#!/bin/bash
+# Launch the Noctoware installer (live ISO only).  Calamares needs root; the
+# live user has passwordless sudo, which the installed system does not keep.
+set -euo pipefail
+if [[ ! -d /run/archiso ]]; then
+    echo "noctoware-installer only runs from the Noctoware live ISO" >&2; exit 1
+fi
+if pgrep -x calamares >/dev/null; then
+    echo "the installer is already running" >&2; exit 0
+fi
+exec sudo -E env "PATH=$PATH" calamares -c /usr/share/noctoware/calamares -d "$@"
