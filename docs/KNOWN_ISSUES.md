@@ -29,3 +29,8 @@
   `sudo systemctl restart sddm`. Normal logouts are not affected.
 * **Two welcome apps on first Plasma login**: KDE's Welcome Center and the
   Noctoware Welcome app both open once.
+* **ISO hosting**: the ISO (~5 GB including the offline KDE Plasma + driver
+  cache) exceeds GitHub's 2 GiB release-asset limit; host it on object
+  storage or a mirror (docs/RELEASE.md).
+* **Hyprland "updated" notice** appears once in Revo Shell sessions (Revo's
+  configuration does not suppress Hyprland's first-run dialog).
