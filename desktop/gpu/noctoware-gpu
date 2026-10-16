@@ -327,6 +327,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--offline-cache", type=Path, default=Path("/opt/noctoware/offline/pkg"))
     a = ap.parse_args(argv)
 
+    # Test hook: VM tests simulate hardware by writing PCI ids to a file in
+    # /run (tmpfs, never persists) before the installer runs.
+    mock_file = Path(os.environ.get("NOCTO_GPU_MOCK_FILE", "/run/noctoware/gpu-mock-ids"))
+    if not a.mock_ids and mock_file.is_file():
+        a.mock_ids = mock_file.read_text().strip()
+        print(f"noctoware-gpu: using mock PCI ids from {mock_file}: {a.mock_ids}", file=sys.stderr)
     gpus = parse_mock_ids(a.mock_ids) if a.mock_ids else scan_sysfs(a.sysfs_root)
     sb = {"on": True, "off": False}.get(a.secure_boot) if a.secure_boot else secure_boot_enabled(a.sysfs_root)
     dkms = a.dkms or os.environ.get("NOCTO_NVIDIA_DKMS") == "1"

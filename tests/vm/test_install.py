@@ -40,6 +40,8 @@ def main() -> int:
     ap.add_argument("--fs", choices=["btrfs", "ext4"], default="btrfs")
     ap.add_argument("--user", default="nocto")
     ap.add_argument("--password", default="Noctoware-Test-2026")
+    ap.add_argument("--no-net", action="store_true", help="no network: everything must come from the ISO")
+    ap.add_argument("--mock-gpu", help="PCI ids the installer's GPU detection should see, e.g. 8086:9bc4,10de:2560")
     ap.add_argument("--bios", action="store_true", help="legacy BIOS (SeaBIOS) instead of UEFI")
     ap.add_argument("--artifacts", type=Path, default=Path("tests/artifacts") / time.strftime("install-%Y%m%d-%H%M%S"))
     ap.add_argument("--attach", type=Path, help="drive an already running debug VM in this dir")
@@ -55,12 +57,15 @@ def main() -> int:
     else:
         a.artifacts.mkdir(parents=True, exist_ok=True)
         disk = create_disk(a.artifacts / "disk.qcow2", "64G")
-        vm = VM(a.artifacts, iso=a.iso.resolve(), disk=disk, firmware="bios" if a.bios else "uefi")
+        vm = VM(a.artifacts, iso=a.iso.resolve(), disk=disk, firmware="bios" if a.bios else "uefi",
+                net=not a.no_net)
         vm.start()
     shot = lambda n: vm.screenshot(n)  # noqa: E731
     try:
         vm.wait_agent(900)
         vm.wait_for("pgrep -x calamares", timeout=300)
+        if a.mock_gpu:
+            vm.qga.run(f"mkdir -p /run/noctoware && echo {a.mock_gpu} > /run/noctoware/gpu-mock-ids")
         rc, live_mid = vm.qga.run("cat /etc/machine-id")
         (a.artifacts / "live-machine-id").write_text(live_mid)
         time.sleep(8)

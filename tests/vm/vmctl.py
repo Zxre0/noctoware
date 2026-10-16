@@ -173,13 +173,13 @@ def render_node() -> str | None:
 class VM:
     def __init__(self, workdir: Path, *, iso: Path | None = None, disk: Path | None = None,
                  memory: str = "8G", cpus: int = 4, gl: bool = True, firmware: str = "uefi",
-                 extra: list[str] | None = None):
+                 extra: list[str] | None = None, net: bool = True):
         self.dir = Path(workdir)
         self.dir.mkdir(parents=True, exist_ok=True)
         self.qmp_path = str(self.dir / "qmp.sock")
         self.qga_path = str(self.dir / "qga.sock")
         self.iso, self.disk, self.gl, self.firmware = iso, disk, gl, firmware
-        self.memory, self.cpus, self.extra = memory, cpus, extra or []
+        self.memory, self.cpus, self.extra, self.net = memory, cpus, extra or [], net
         self.proc: subprocess.Popen | None = None
         self.qmp: QMP | None = None
         self.qga = QGA(self.qga_path)
@@ -191,7 +191,7 @@ class VM:
              "-chardev", f"socket,path={self.qga_path},server=on,wait=off,id=qga0",
              "-device", "virtio-serial", "-device", "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0",
              "-device", "qemu-xhci", "-device", "usb-tablet", "-device", "usb-kbd",
-             "-netdev", "user,id=n0", "-device", "virtio-net-pci,netdev=n0",
+             *(["-netdev", "user,id=n0", "-device", "virtio-net-pci,netdev=n0"] if self.net else ["-nic", "none"]),
              "-audiodev", "none,id=snd0", "-device", "intel-hda", "-device", "hda-output,audiodev=snd0",
              "-serial", f"file:{self.dir / 'serial.log'}", "-monitor", "none"]
         if self.firmware == "uefi":

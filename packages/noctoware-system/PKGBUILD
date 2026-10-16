@@ -2,7 +2,7 @@
 # System integration: GPU detection/driver selection, snapshots and recovery.
 pkgname=noctoware-system
 pkgver=0.1
-pkgrel=3
+pkgrel=4
 pkgdesc="Noctoware Linux GPU detection, Btrfs snapshots and recovery tools"
 arch=('any')
 url="https://github.com/Zxre0/noctoware"

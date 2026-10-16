@@ -120,6 +120,7 @@ def main() -> int:
     ap.add_argument("--password", default="Noctoware-Test-2026")
     ap.add_argument("--plasma", action="store_true", help="the install chose Hyprland + KDE Plasma")
     ap.add_argument("--repo-dir", type=Path, default=ROOT / "repository/x86_64")
+    ap.add_argument("--expect-gpu", default="virtual", help="GPU profile the install should have (virtual, hybrid-nvidia)")
     ap.add_argument("--bios", action="store_true", help="legacy BIOS (SeaBIOS) instead of UEFI")
     ap.add_argument("--artifacts", type=Path, default=ROOT / "tests/artifacts" / time.strftime("installed-%Y%m%d-%H%M%S"))
     ap.add_argument("--keep", action="store_true")
@@ -187,12 +188,24 @@ def main() -> int:
         rc, out = q("cat /etc/noctoware/gpu.json")
         try:
             g = json.loads(out)
-            rc2, inst = q("pacman -Qq nvidia-utils vulkan-intel vulkan-radeon vulkan-virtio lib32-vulkan-swrast qemu-guest-agent 2>&1")
-            c.check("GPU drivers match the VM (virtual profile, no NVIDIA/Intel/AMD stacks)",
-                    g["profile"] == "virtual" and "vulkan-virtio" in inst and "was not found" in inst
-                    and inst.count("was not found") == 3, inst)
+            if a.expect_gpu == "virtual":
+                rc2, inst = q("pacman -Qq nvidia-utils vulkan-intel vulkan-radeon vulkan-virtio lib32-vulkan-swrast qemu-guest-agent 2>&1")
+                c.check("GPU drivers match the VM (virtual profile, no NVIDIA/Intel/AMD stacks)",
+                        g["profile"] == "virtual" and "vulkan-virtio" in inst and "was not found" in inst
+                        and inst.count("was not found") == 3, inst)
+            elif a.expect_gpu == "hybrid-nvidia":
+                rc2, inst = q("pacman -Q linux-cachyos-nvidia-open linux-cachyos-lts-nvidia-open nvidia-utils "
+                              "lib32-nvidia-utils nvidia-prime vulkan-intel lib32-vulkan-intel 2>&1; "
+                              "pacman -Qq vulkan-radeon nvidia-open-dkms 2>&1; cat /etc/modprobe.d/noctoware-nvidia.conf "
+                              "/etc/environment.d/50-noctoware-nvidia.conf; systemctl is-enabled nvidia-suspend; "
+                              "lsinitcpio /boot/initramfs-linux-cachyos.img | grep -c 'nvidia.*\\.ko' ; true")
+                c.check("hybrid NVIDIA laptop: CachyOS nvidia-open (both kernels), 32-bit libs, prime, Intel Vulkan; "
+                        "no AMD/DKMS; modeset; no forced NVIDIA GL",
+                        g["profile"] == "hybrid-nvidia" and rc2 == 0 and "linux-cachyos-lts-nvidia-open" in inst
+                        and "nvidia-prime" in inst and inst.count("was not found") == 2 and "modeset=1" in inst
+                        and "__GLX_VENDOR_LIBRARY_NAME" not in inst and "enabled" in inst, inst)
         except (ValueError, KeyError) as e:
-            c.check("GPU drivers match the VM", False, f"{e}: {out}")
+            c.check("GPU drivers match the hardware", False, f"{e}: {out}")
 
         rc, out = q("pacman -Q steam gamescope gamemode mangohud lib32-mangohud openai-codex noctoware-ai-tools linux-cachyos linux-cachyos-lts")
         c.check("Steam/gaming stack, Codex and both kernels installed", rc == 0, out)

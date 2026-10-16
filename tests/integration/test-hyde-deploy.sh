@@ -6,6 +6,7 @@ set -euo pipefail
 trap 'echo "FAILED at ${BASH_SOURCE[0]##*/}:$LINENO: $BASH_COMMAND" >&2' ERR
 root="$(cd "$(dirname "$0")/../.." && pwd)"; R="$root/repository/x86_64"
 T="$(mktemp -d)"; trap 'chmod -R u+w "$T"; rm -rf "$T"' EXIT
+trap 'echo "FAILED at ${BASH_SOURCE[0]##*/}:$LINENO: $BASH_COMMAND" >&2; echo "--- deploy log:" >&2; sed "s/\x1b\[[0-9;]*m//g" "$T/deploy.log" | tail -40 >&2' ERR
 for p in noctoware-hyde noctoware-branding hyprquery; do
     bsdtar -xf "$(ls "$R"/$p-[0-9]*.pkg.tar.zst | tail -1)" -C "$T/" 2>/dev/null || { mkdir -p "$T"; bsdtar -xf "$(ls "$R"/$p-[0-9]*.pkg.tar.zst | tail -1)" -C "$T"; }
 done

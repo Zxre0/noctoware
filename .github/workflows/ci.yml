@@ -42,4 +42,6 @@ jobs:
         if: always()
         with:
           name: logs
-          path: work/logs/
+          path: |
+            work/logs/
+            work/test-*.log
