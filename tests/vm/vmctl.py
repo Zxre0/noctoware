@@ -173,13 +173,14 @@ def render_node() -> str | None:
 class VM:
     def __init__(self, workdir: Path, *, iso: Path | None = None, disk: Path | None = None,
                  memory: str = "8G", cpus: int = 4, gl: bool = True, firmware: str = "uefi",
-                 extra: list[str] | None = None, net: bool = True):
+                 extra: list[str] | None = None, net: bool = True, outputs: int = 1):
         self.dir = Path(workdir)
         self.dir.mkdir(parents=True, exist_ok=True)
         self.qmp_path = str(self.dir / "qmp.sock")
         self.qga_path = str(self.dir / "qga.sock")
         self.iso, self.disk, self.gl, self.firmware = iso, disk, gl, firmware
         self.memory, self.cpus, self.extra, self.net = memory, cpus, extra or [], net
+        self.outputs = outputs
         self.proc: subprocess.Popen | None = None
         self.qmp: QMP | None = None
         self.qga = QGA(self.qga_path)
@@ -202,7 +203,7 @@ class VM:
                   "-drive", f"if=pflash,format=raw,file={vars_copy}"]
         if self.gl:
             node = render_node()
-            a += ["-device", "virtio-vga-gl,xres=1920,yres=1080",
+            a += ["-device", f"virtio-vga-gl,xres=1920,yres=1080,max_outputs={self.outputs}",
                   "-display", "egl-headless" + (f",rendernode={node}" if node else "")]
         else:
             a += ["-device", "virtio-vga,xres=1920,yres=1080", "-display", "none"]

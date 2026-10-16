@@ -39,24 +39,33 @@ greeter) because QEMU cannot read GL scanouts in egl-headless mode.
 | `test_plasma_later.py --disk D` | `sudo pacman -S noctoware-plasma` on a Hyprland-only install |
 | `test_optin.py --disk D` | Claude Code via the official installer; Revo Shell fetch + switching |
 | `test_recovery.py --disk D` | snapper rollback with `noctoware-rollback`; LTS recovery kernel |
+| `test_multimonitor.py --disk D` | two monitors (second on another virtio GPU: egl-headless enables only head 0) |
+| `run-all.sh [ISO]` | the whole release suite in two parallel lanes → `SUMMARY.md` |
 
 `scripts/test-iso.sh all` runs live → install → installed.
 
 [noctoware] is served to the guests from the build host (the public GitHub
 repository is not published yet); Arch and CachyOS come from their mirrors.
 
-### Results — 2026-10-16, ISO noctoware-0.1-alpha (KVM, virtio-gpu)
+### Results — release run 2026-10-16 (`tests/vm/run-all.sh`)
+ISO `noctoware-0.1-alpha-2026.10.16-x86_64.iso`, KVM, virtio-gpu, two lanes in parallel.
+
 | scenario | result |
 |---|---|
-| live boot, UEFI | 20/20 |
+| live boot, UEFI (systemd-boot) | 20/20 |
 | live boot, BIOS (syslinux) | 20/20 |
 | install Hyprland, Btrfs, UEFI → installed system | 1/1 → 23/23 |
 | install Hyprland, Btrfs, **BIOS** (GRUB) → installed system | 1/1 → 23/23 |
 | install Hyprland, **ext4**, UEFI → installed system | 1/1 → 22/22 |
-| install **Hyprland + KDE Plasma** → installed system incl. both sessions, switching, Steam in each | 1/1 → 29/29 |
-| install KDE later with pacman on a Hyprland install | 6/6 |
-| Claude Code official installer + Revo Shell (macOS) + shell switching | 10/10 |
+| install **Hyprland + KDE Plasma**, **no network**, mocked **hybrid Intel + NVIDIA RTX** → installed system (both sessions, switching, Steam in each, NVIDIA stack) | 1/1 → 29/29 |
+| install KDE later with `sudo pacman -S noctoware-plasma` | 6/6 |
+| Claude Code (official installer, consent) + Revo Shell (macOS) + shell switching | 10/10* |
 | snapshot rollback + LTS recovery kernel | 9/9 |
+| multi-monitor: two displays on two GPUs, waybar + wallpaper on each | 3/3 |
+
+\* first run 9/10: Revo's quickshell started after the test's 120 s window
+under parallel load; re-verified manually and in an isolated re-run (wait
+raised to 300 s).
 
 What `test_installed.py` verifies: boots without the ISO; CachyOS kernel;
 `os-release`; no live-session leftovers (liveuser, NOPASSWD sudo, autologin,
@@ -74,7 +83,7 @@ Noctoware package with snap-pac pre/post snapshots and boot-file backup.
 
 ### Not covered by VMs
 Physical GPUs (NVIDIA/AMD/Intel), Secure Boot, laptops (hybrid graphics,
-suspend), Wi-Fi/Bluetooth hardware, multi-monitor setups. Hardware
+suspend), Wi-Fi/Bluetooth hardware, high-DPI and mixed-refresh multi-monitor setups. Hardware
 compatibility is **not** claimed from VM results; see docs/GPU.md.
 
 ## Results log

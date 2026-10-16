@@ -276,7 +276,11 @@ def main() -> int:
                         "command -v codex claude fastfetch")
             c.check("Plasma session: KDE desktop, codex + claude (shim) on PATH",
                     "KDE" in out and "/usr/lib/noctoware/shims/claude" in out and "/usr/bin/codex" in out, out)
-            rc, out = q("fastfetch --pipe --logo none", user=a.user)
+            rc, out = q(f"pgrep -u {a.user} -x pipewire; pgrep -u {a.user} -x wireplumber; "
+                        f"pgrep -u {a.user} -f xdg-desktop-portal-kde; systemctl is-active NetworkManager; "
+                        f"pgrep -u {a.user} -x plasmashell >/dev/null && echo plasma")
+            c.check("Plasma: PipeWire + WirePlumber (audio), KDE portal (screen sharing), NetworkManager",
+                    len(out.split()) >= 5 and "active" in out and out.strip().endswith("plasma"), out)
             ok_steam, log = steam_launches(vm, a.user, "plasmashell")
             c.check("Steam launches from Plasma", ok_steam, log)
             logout(vm, a.user)

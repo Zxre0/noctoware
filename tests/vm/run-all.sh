@@ -16,7 +16,7 @@ lane_a() {
     py "$V/test_installed.py" --disk "$R/hypr/install/disk.qcow2" --vars "$R/hypr/install/OVMF_VARS.fd" \
         --artifacts "$R/hypr/installed" >"$R/hypr-installed.log" 2>&1
     # derived scenarios on copies of the Hyprland install
-    for t in plasma_later optin recovery; do
+    for t in plasma_later optin recovery multimonitor; do
         cp "$R/hypr/install/disk.qcow2" "$R/$t.qcow2"
         py "$V/test_$t.py" --disk "$R/$t.qcow2" --vars "$R/hypr/install/OVMF_VARS.fd" \
             --artifacts "$R/$t" >"$R/$t.log" 2>&1
@@ -50,7 +50,7 @@ wait $a $b
     echo "| scenario | result |"
     echo "|---|---|"
     for l in live-uefi live-bios hypr-install hypr-installed bios-install bios-installed ext4-install \
-             ext4-installed plasma-nvidia-install plasma-nvidia-installed plasma_later optin recovery; do
+             ext4-installed plasma-nvidia-install plasma-nvidia-installed plasma_later optin recovery multimonitor; do
         res="$(grep -hoE '[0-9]+/[0-9]+ checks passed' "$R/$l.log" 2>/dev/null | tail -1)"
         echo "| $l | ${res:-did not finish} |"
     done
