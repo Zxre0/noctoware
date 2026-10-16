@@ -174,7 +174,11 @@ def main() -> int:
         c.check("final initramfs has no archiso hooks", out.strip().endswith("0"), out)
 
         rc, out = q("findmnt -no FSTYPE /")
-        if out.strip() == "btrfs":
+        is_btrfs = out.strip() == "btrfs"
+        if not is_btrfs:
+            rc, out2 = q("findmnt -no FSTYPE /; test -f /etc/snapper/configs/root && echo has-snapper || echo no-snapper")
+            c.check("ext4 install: root is ext4, no snapper configuration", out2.split() == ["ext4", "no-snapper"], out2)
+        if is_btrfs:
             rc, out = q("btrfs subvolume list / | awk '{print $NF}'; snapper -c root list; "
                         "ls /usr/share/libalpm/hooks | grep -E 'snap-pac|noctoware'")
             c.check("Btrfs subvolumes + snapper config + fresh-install snapshot + snap-pac hooks",
@@ -285,8 +289,9 @@ def main() -> int:
             after = q("pacman -Q noctoware-welcome")[1]
             c.check("sudo pacman -Syu succeeds (Arch + CachyOS + [noctoware], signatures verified)", rc == 0, out)
             c.check("Noctoware package upgraded via pacman", before != after, f"{before} -> {after}")
-            rc, out = q("snapper -c root list | tail -3")
-            c.check("snap-pac created pre/post snapshots for the update", "pre" in out and "post" in out, out)
+            if is_btrfs:
+                rc, out = q("snapper -c root list | tail -3")
+                c.check("snap-pac created pre/post snapshots for the update", "pre" in out and "post" in out, out)
             rc, out = q("ls /var/lib/noctoware/boot-backup/")
             c.check("boot files saved for rollback", "vmlinuz-linux-cachyos" in out, out)
     finally:
