@@ -51,7 +51,7 @@ def main() -> int:
     ap.add_argument("--disk", type=Path, required=True)
     ap.add_argument("--vars", type=Path, help="OVMF_VARS.fd from the install run (keeps the NVRAM boot entry)")
     ap.add_argument("--user", default="nocto")
-    ap.add_argument("--password", default="noctoware-test")
+    ap.add_argument("--password", default="Noctoware-Test-2026")
     ap.add_argument("--plasma", action="store_true", help="the install chose Hyprland + KDE Plasma")
     ap.add_argument("--repo-dir", type=Path, default=ROOT / "repository/x86_64")
     ap.add_argument("--artifacts", type=Path, default=ROOT / "tests/artifacts" / time.strftime("installed-%Y%m%d-%H%M%S"))
@@ -132,7 +132,13 @@ def main() -> int:
         # ---- graphical login into Noctoware Hyprland
         time.sleep(5)
         vm.screenshot("sddm-greeter")
-        sddm_login(vm, a.user, a.password)
+        for attempt in range(3):   # synthetic keys can be dropped; retry the greeter login
+            sddm_login(vm, a.user, a.password)
+            try:
+                vm.wait_for(f"pgrep -u {a.user} -x Hyprland", timeout=60)
+                break
+            except TimeoutError:
+                vm.screenshot(f"login-attempt-{attempt + 1}")
         try:
             out = vm.wait_for(f"pgrep -u {a.user} -x Hyprland && test -f /home/{a.user}/.local/state/noctoware/hyde-deployed "
                               f"&& pgrep -u {a.user} -x waybar", timeout=300)

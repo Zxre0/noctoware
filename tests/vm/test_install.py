@@ -103,7 +103,7 @@ def main() -> int:
                 break
             if out != last_job:
                 last_job = out
-            rc, fin = vm.qga.run(f"grep -q 'completion: success' {LOG}; echo $?")
+            rc, fin = vm.qga.run(f"grep -qE 'completion: succe(ss|eded)' {LOG}; echo $?")
             if fin.strip().endswith("0"):
                 result = "success"
                 break
