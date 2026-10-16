@@ -18,6 +18,8 @@ jobs:
           pacman -Syu --noconfirm --needed git archiso uv python python-gobject python-yaml gtk4 librsvg imagemagick \
             cmake ninja cli11 nlohmann-json hyprlang hyprutils pkgconf rsync curl jq fakeroot
       - uses: actions/checkout@v4
+      - name: Install package build dependencies (derived from PKGBUILDs)
+        run: scripts/ci-install-deps.sh
       - name: CachyOS keyring (needed to verify [cachyos] packages)
         run: |
           f=$(curl -fsSL https://mirror.cachyos.org/repo/x86_64/cachyos/ | grep -o 'cachyos-keyring-[0-9][^"]*-any\.pkg\.tar\.zst' | sort -V | tail -1)

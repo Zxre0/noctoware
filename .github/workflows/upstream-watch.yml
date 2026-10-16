@@ -17,6 +17,8 @@ jobs:
           pacman-key --init && pacman-key --populate archlinux
           pacman -Syu --noconfirm --needed git uv python python-yaml librsvg cmake ninja cli11 nlohmann-json hyprlang hyprutils pkgconf curl jq fakeroot github-cli
       - uses: actions/checkout@v4
+      - name: Install package build dependencies (derived from PKGBUILDs)
+        run: scripts/ci-install-deps.sh
       - id: check
         run: |
           useradd -m builder; chown -R builder: "$GITHUB_WORKSPACE"

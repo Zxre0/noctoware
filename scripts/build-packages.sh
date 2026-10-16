@@ -38,7 +38,8 @@ for p in "${pkgs[@]}"; do
     dir="$NOCTO_ROOT/packages/$p"
     [[ -f "$dir/PKGBUILD" ]] || die "no PKGBUILD for $p" "$E_USAGE"
     # every file this PKGBUILD would produce
-    mapfile -t files < <(cd "$dir" && makepkg --packagelist)
+    # debug packages (enabled in Arch's default makepkg.conf) are not shipped
+    mapfile -t files < <(cd "$dir" && makepkg --packagelist | grep -v -- '-debug-')
     if [[ $force -eq 0 ]]; then
         missing=0
         for f in "${files[@]}"; do [[ -f "$f" && -f "$f.sig" ]] || missing=1; done
@@ -52,6 +53,7 @@ for p in "${pkgs[@]}"; do
         tail -25 "$NOCTO_WORK/logs/$p.log" >&2
         die "build of $p failed (full log: work/logs/$p.log)" "$E_BUILD"
     fi
+    rm -f "$NOCTO_REPO_DIR"/*-debug-*.pkg.tar.*
     for f in "${files[@]}"; do
         [[ -f "$f" ]] || die "$p did not produce $(basename "$f")" "$E_BUILD"
         rm -f "$f.sig"
