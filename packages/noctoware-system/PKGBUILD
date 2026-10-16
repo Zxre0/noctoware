@@ -2,12 +2,12 @@
 # System integration: GPU detection/driver selection, snapshots and recovery.
 pkgname=noctoware-system
 pkgver=0.1
-pkgrel=7
+pkgrel=8
 pkgdesc="Noctoware Linux GPU detection, Btrfs snapshots and recovery tools"
 arch=('any')
 url="https://github.com/Zxre0/noctoware"
 license=('MIT')
-depends=('python' 'pciutils' 'arch-install-scripts' 'btrfs-progs' 'snapper' 'snap-pac'
+depends=('python' 'pciutils' 'vulkan-tools' 'arch-install-scripts' 'btrfs-progs' 'snapper' 'snap-pac'
          'noctoware-release' 'noctoware-keyring' 'noctoware-mirrorlist'
          'cachyos-keyring' 'cachyos-mirrorlist')
 optdepends=('grub-btrfs: boot into snapshots from the GRUB menu (BIOS installs)'
@@ -20,6 +20,7 @@ package() {
   install -Dm755 "$d/system/bin/noctoware-snapper-setup" "$pkgdir/usr/bin/noctoware-snapper-setup"
   install -Dm755 "$d/system/bin/noctoware-rollback" "$pkgdir/usr/bin/noctoware-rollback"
   install -Dm755 "$d/system/bin/noctoware-secureboot" "$pkgdir/usr/bin/noctoware-secureboot"
+  install -Dm755 "$d/system/bin/noctoware-hwreport" "$pkgdir/usr/bin/noctoware-hwreport"
   install -Dm755 "$d/system/bin/noctoware-boot-backup" "$pkgdir/usr/lib/noctoware/noctoware-boot-backup"
   install -Dm755 "$d/system/bin/noctoware-unsparse-boot" "$pkgdir/usr/lib/noctoware/noctoware-unsparse-boot"
   install -Dm644 "$d/system/hooks/zz-noctoware-unsparse-boot.hook" "$pkgdir/usr/share/libalpm/hooks/zz-noctoware-unsparse-boot.hook"

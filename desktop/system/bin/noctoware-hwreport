@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# noctoware-hwreport — collect a hardware compatibility report for testers.
+#   noctoware-hwreport [-o FILE]       (default: ~/noctoware-hwreport-<date>.md)
+# Contains hardware/driver facts only: no usernames, serial numbers, MAC or IP
+# addresses.  Review it before sharing.
+set -uo pipefail
+out="$HOME/noctoware-hwreport-$(date +%Y%m%d-%H%M).md"
+[[ "${1:-}" == -o ]] && out="$2"
+sec() { printf '\n## %s\n```\n' "$1"; shift; "$@" 2>&1 | sed -E 's/([0-9a-f]{2}:){5}[0-9a-f]{2}/xx:xx:xx:xx:xx:xx/Ig'; printf '```\n'; }
+{
+    echo "# Noctoware hardware report — $(date -I)"
+    sec "System" bash -c 'grep -E "^(PRETTY_NAME|VERSION)=" /etc/os-release; uname -r; cat /proc/cmdline | sed "s/root=[^ ]*/root=…/"'
+    sec "Firmware / boot" bash -c 'test -d /sys/firmware/efi && echo UEFI || echo BIOS; bootctl status 2>/dev/null | grep -E "Secure Boot|Product|Firmware" ; command -v sbctl >/dev/null && sbctl status 2>/dev/null'
+    sec "CPU / memory" bash -c 'grep -m1 "model name" /proc/cpuinfo; free -h | head -2'
+    sec "Display controllers" bash -c 'lspci -nnk | grep -A3 -E "VGA|3D|Display"'
+    sec "Noctoware GPU plan (detected now)" noctoware-gpu plan
+    sec "GPU profile chosen at install" bash -c 'cat /etc/noctoware/gpu.json 2>/dev/null | head -40 || echo none'
+    sec "Loaded GPU kernel modules" bash -c 'lsmod | grep -E "^(nvidia|nvidia_drm|nvidia_modeset|amdgpu|radeon|i915|xe|nouveau)\b"'
+    sec "NVIDIA" bash -c 'command -v nvidia-smi >/dev/null && nvidia-smi --query-gpu=name,driver_version,pstate,temperature.gpu --format=csv || echo "no nvidia-smi"; cat /sys/module/nvidia_drm/parameters/modeset 2>/dev/null'
+    sec "Vulkan" bash -c 'vulkaninfo --summary 2>/dev/null | sed -n "/Devices:/,\$p" | head -30 || echo "vulkan-tools missing"'
+    sec "Session" bash -c 'echo "$XDG_CURRENT_DESKTOP $XDG_SESSION_TYPE"; hyprctl monitors 2>/dev/null | grep -E "^Monitor|[0-9]+x[0-9]+@"'
+    sec "Audio / network / bluetooth" bash -c 'pactl info 2>/dev/null | grep -E "Server Name|Default Sink"; nmcli -t -f TYPE,STATE device 2>/dev/null; bluetoothctl show 2>/dev/null | grep -E "Powered|Name" | sed "s/Name:.*/Name: …/"'
+    sec "Snapshots" bash -c 'snapper -c root list 2>/dev/null | tail -5 || echo "no snapper (ext4?)"'
+    sec "Errors this boot (journal, priority err)" bash -c 'journalctl -b -p err --no-pager -o short-monotonic 2>/dev/null | tail -40'
+} >"$out"
+echo "report written to $out — review before sharing"

@@ -39,6 +39,8 @@ jobs:
         run: su builder -c "cd '$GITHUB_WORKSPACE' && scripts/check-dependencies.sh"
       - name: Simulate sudo pacman -Syu from the published repository
         run: su builder -c "cd '$GITHUB_WORKSPACE' && scripts/validate-update.sh"
+      - name: Publishing pipeline against a simulated GitHub Releases
+        run: su builder -c "cd '$GITHUB_WORKSPACE' && tests/integration/test-publish.sh"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
