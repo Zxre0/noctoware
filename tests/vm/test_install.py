@@ -40,6 +40,7 @@ def main() -> int:
     ap.add_argument("--fs", choices=["btrfs", "ext4"], default="btrfs")
     ap.add_argument("--user", default="nocto")
     ap.add_argument("--password", default="Noctoware-Test-2026")
+    ap.add_argument("--bios", action="store_true", help="legacy BIOS (SeaBIOS) instead of UEFI")
     ap.add_argument("--artifacts", type=Path, default=Path("tests/artifacts") / time.strftime("install-%Y%m%d-%H%M%S"))
     ap.add_argument("--attach", type=Path, help="drive an already running debug VM in this dir")
     ap.add_argument("--keep", action="store_true", help="leave the VM running")
@@ -54,7 +55,7 @@ def main() -> int:
     else:
         a.artifacts.mkdir(parents=True, exist_ok=True)
         disk = create_disk(a.artifacts / "disk.qcow2", "64G")
-        vm = VM(a.artifacts, iso=a.iso.resolve(), disk=disk)
+        vm = VM(a.artifacts, iso=a.iso.resolve(), disk=disk, firmware="bios" if a.bios else "uefi")
         vm.start()
     shot = lambda n: vm.screenshot(n)  # noqa: E731
     try:
@@ -113,7 +114,7 @@ def main() -> int:
         time.sleep(3)
         shot("11-finished")
         rc, tail = vm.qga.run(f"grep -E 'Starting job|ERROR|details' {LOG} | tail -12")
-        c.check(f"Calamares installation completes ({a.desktop}, {a.fs})", result == "success",
+        c.check(f"Calamares installation completes ({a.desktop}, {a.fs}, {'bios' if a.bios else 'uefi'})", result == "success",
                 f"{result} after {time.time() - t0:.0f}s\n{tail}")
         vm.qga.run(f"cp {LOG} /tmp/install.log; chmod 644 /tmp/install.log")
         rc, log = vm.qga.run("cat /tmp/install.log")

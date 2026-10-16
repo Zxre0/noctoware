@@ -1,0 +1,13 @@
+# After 90-mkinitcpio-install has copied kernels into /boot.
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/lib/initcpio/*
+Target = boot/*
+
+[Action]
+Description = Making boot images GRUB-readable on btrfs...
+When = PostTransaction
+Exec = /usr/lib/noctoware/noctoware-unsparse-boot

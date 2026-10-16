@@ -4,7 +4,7 @@
 # Only installed on the live ISO; removed from the target during installation.
 pkgname=noctoware-calamares-config
 pkgver=0.1
-pkgrel=5
+pkgrel=6
 pkgdesc="Noctoware Linux Calamares installer configuration and branding"
 arch=('any')
 url="https://github.com/Zxre0/noctoware"

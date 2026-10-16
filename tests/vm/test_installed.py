@@ -120,6 +120,7 @@ def main() -> int:
     ap.add_argument("--password", default="Noctoware-Test-2026")
     ap.add_argument("--plasma", action="store_true", help="the install chose Hyprland + KDE Plasma")
     ap.add_argument("--repo-dir", type=Path, default=ROOT / "repository/x86_64")
+    ap.add_argument("--bios", action="store_true", help="legacy BIOS (SeaBIOS) instead of UEFI")
     ap.add_argument("--artifacts", type=Path, default=ROOT / "tests/artifacts" / time.strftime("installed-%Y%m%d-%H%M%S"))
     ap.add_argument("--keep", action="store_true")
     a = ap.parse_args()
@@ -128,7 +129,7 @@ def main() -> int:
     if a.vars:
         shutil.copy(a.vars, a.artifacts / "OVMF_VARS.fd")
     c = Checks()
-    vm = VM(a.artifacts, disk=a.disk.resolve())
+    vm = VM(a.artifacts, disk=a.disk.resolve(), firmware="bios" if a.bios else "uefi")
     vm.start()
     try:
         try:
@@ -154,12 +155,20 @@ def main() -> int:
         mid = out.split()[-2] if out else ""
         c.check("unique machine-id generated", bool(re.fullmatch(r"[0-9a-f]{32}", mid)) and mid != "uninitialized", mid)
 
-        rc, out = q("bootctl status 2>/dev/null | sed -n '1,25p'; ls /boot /boot/loader/entries; "
-                    "cat /boot/loader/entries/noctoware.conf; cat /etc/fstab")
-        efi = "systemd-boot" in out
-        c.check("systemd-boot with static entries for both kernels",
-                efi and all(x in out for x in ("noctoware.conf", "noctoware-lts.conf", "noctoware-fallback.conf",
-                                               "vmlinuz-linux-cachyos", "initramfs-linux-cachyos.img")), out)
+        if a.bios:
+            rc, out = q("test -d /sys/firmware/efi && echo efi || echo bios; ls /boot/grub/i386-pc | head -2; "
+                        "grep -E '^menuentry|linux.*vmlinuz' /boot/grub/grub.cfg | head -8; "
+                        "dd if=$(findmnt -no SOURCE / | sed 's/[0-9]*$//; s/p$//' | sed 's/\\[.*//') bs=512 count=1 2>/dev/null | grep -c GRUB")
+            c.check("BIOS: GRUB installed with entries for linux-cachyos and the LTS kernel",
+                    out.startswith("bios") and "vmlinuz-linux-cachyos " in out.replace("\n", " ") + " "
+                    and "vmlinuz-linux-cachyos-lts" in out, out)
+        else:
+            rc, out = q("bootctl status 2>/dev/null | sed -n '1,25p'; ls /boot /boot/loader/entries; "
+                        "cat /boot/loader/entries/noctoware.conf; cat /etc/fstab")
+            efi = "systemd-boot" in out
+            c.check("systemd-boot with static entries for both kernels",
+                    efi and all(x in out for x in ("noctoware.conf", "noctoware-lts.conf", "noctoware-fallback.conf",
+                                                   "vmlinuz-linux-cachyos", "initramfs-linux-cachyos.img")), out)
         rc, out = q("lsinitcpio -a /boot/initramfs-linux-cachyos.img 2>/dev/null | head -20; "
                     "lsinitcpio /boot/initramfs-linux-cachyos.img | grep -c archiso")
         c.check("final initramfs has no archiso hooks", out.strip().endswith("0"), out)

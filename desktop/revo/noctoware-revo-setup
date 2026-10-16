@@ -46,7 +46,7 @@ mkdir -p "$store"
 if [[ "$(cat "$store/active" 2>/dev/null || echo hyde)" == hyde ]]; then
     # snapshot HyDE before Revo's installer rewrites ~/.config
     rm -rf "$store/hyde.tmp"; mkdir -p "$store/hyde.tmp"
-    for d in hypr rofi kitty quickshell waybar; do
+    for d in hypr rofi kitty quickshell waybar uwsm; do
         if [[ -e "$HOME/.config/$d" ]]; then cp -a "$HOME/.config/$d" "$store/hyde.tmp/$d"; fi
     done
     rm -rf "$store/hyde"; mv "$store/hyde.tmp" "$store/hyde"
@@ -60,10 +60,12 @@ fi
 if [[ $latest -eq 1 ]]; then git -C "$DEST" checkout --quiet origin/HEAD; else git -C "$DEST" checkout --quiet "$PIN"; fi
 
 (cd "$DEST" && ./install.sh --shells "$interfaces")
+# HyDE's uwsm environment points Hyprland at HyDE's config; Revo uses its own
+rm -rf "$HOME/.config/uwsm"
 echo revo >"$store/active"
 # keep a pristine copy of the freshly installed Revo profile too
 rm -rf "$store/revo"; mkdir -p "$store/revo"
-for d in hypr rofi kitty quickshell waybar; do
+for d in hypr rofi kitty quickshell waybar uwsm; do
     if [[ -e "$HOME/.config/$d" ]]; then cp -a "$HOME/.config/$d" "$store/revo/$d"; fi
 done
 command -v hyprpm >/dev/null && { hyprpm update || echo "hyprpm update failed: plugins rebuild at next login"; }

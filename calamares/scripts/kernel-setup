@@ -26,3 +26,5 @@ done
 # stale archiso images
 rm -f /boot/initramfs-*-archiso*.img
 mkinitcpio -P
+# BIOS installs boot GRUB from btrfs: no sparse tails in boot images
+/usr/lib/noctoware/noctoware-unsparse-boot

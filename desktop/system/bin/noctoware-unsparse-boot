@@ -1,0 +1,15 @@
+#!/bin/sh
+# GRUB's btrfs driver mis-reads files whose tail is an implicit hole
+# (btrfs "no-holes", now a mkfs default): it returns a short read and fails
+# with "premature end of file" on the kernel.  pacman/coreutils write runs of
+# zeros sparsely, so kernel images copied to a /boot on btrfs can end in a
+# hole.  Rewrite such files fully allocated.  No-op unless /boot is btrfs.
+[ "$(findmnt -no FSTYPE --target /boot 2>/dev/null)" = btrfs ] || exit 0
+for f in /boot/vmlinuz-* /boot/initramfs-*.img; do
+    [ -f "$f" ] || continue
+    # allocated bytes < apparent size => sparse
+    if [ $(( $(stat -c %b "$f") * $(stat -c %B "$f") )) -lt "$(stat -c %s "$f")" ]; then
+        cp --sparse=never -p "$f" "$f.nocto-tmp" && mv -f "$f.nocto-tmp" "$f"
+    fi
+done
+exit 0

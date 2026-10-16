@@ -17,6 +17,30 @@ if [[ "$(findmnt -no FSTYPE /)" == btrfs ]]; then
     snapper --no-dbus -c root create -d "Noctoware fresh install" -c number --userdata important=yes 2>/dev/null || true
 fi
 
+# BIOS + GPT: Calamares' "boot" flag gives the root partition the EFI System
+# type GUID; give it the Linux filesystem type (the bios_grub partition is
+# what GRUB uses on BIOS/GPT).
+if [[ ! -d /sys/firmware/efi ]]; then
+    src="$(findmnt -no SOURCE / | sed 's/\[.*//')"
+    part="$(basename "$(readlink -f "$src")")"
+    disk="$(lsblk -no PKNAME "/dev/$part" 2>/dev/null | head -1)"
+    num="$(cat "/sys/class/block/$part/partition" 2>/dev/null)"
+    if [[ -n "$disk" && -n "$num" ]] && [[ "$(lsblk -no PARTTYPE "/dev/$part")" == c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]] \
+       && [[ "$(lsblk -no FSTYPE "/dev/$part")" != vfat ]]; then
+        sgdisk -t "$num:8300" "/dev/$disk" >/dev/null && echo "root partition type set to Linux filesystem"
+    fi
+fi
+
+# BIOS: brand GRUB and make linux-cachyos (not the LTS recovery kernel) the
+# default entry, then regenerate grub.cfg with the non-sparse boot images.
+if [[ ! -d /sys/firmware/efi && -f /etc/default/grub ]]; then
+    sed -i 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="Noctoware"/' /etc/default/grub
+    grep -q '^GRUB_TOP_LEVEL=' /etc/default/grub ||
+        echo 'GRUB_TOP_LEVEL="/boot/vmlinuz-linux-cachyos"' >>/etc/default/grub
+    /usr/lib/noctoware/noctoware-unsparse-boot
+    grub-mkconfig -o /boot/grub/grub.cfg
+fi
+
 # make sure the locale chosen in the installer is generated
 locale-gen >/dev/null 2>&1 || true
 exit 0

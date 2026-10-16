@@ -6,7 +6,7 @@
 # Not included in public ISO builds.
 pkgname=noctoware-revo
 pkgver=0.1
-pkgrel=1
+pkgrel=2
 pkgdesc="Noctoware shell switcher and on-demand Revo Shell installer (Revo fetched from upstream)"
 arch=('any')
 url="https://github.com/Zxre0/noctoware"

@@ -14,7 +14,9 @@
 set -euo pipefail
 STORE="${XDG_DATA_HOME:-$HOME/.local/share}/noctoware/shells"
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
-DIRS=(hypr rofi kitty quickshell waybar)
+# uwsm: HyDE sets HYPRLAND_CONFIG (its Lua entry point) in ~/.config/uwsm, so the
+# environment must belong to the profile or Hyprland keeps loading HyDE.
+DIRS=(hypr rofi kitty quickshell waybar uwsm)
 REVO_SRC="${XDG_DATA_HOME:-$HOME/.local/share}/noctoware/revo-shell"
 active_file="$STORE/active"
 

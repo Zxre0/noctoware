@@ -67,7 +67,7 @@ def main() -> int:
             q(f"echo '{u} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/99-test-only && chmod 440 /etc/sudoers.d/99-test-only")
             with RepoServer(ROOT / "repository/x86_64") as url:
                 q(f"sed -i 's|^Server = .*|Server = {url}|' /etc/pacman.d/noctoware-mirrorlist")
-                rc, out = q("set -o pipefail; pacman -Syy --noconfirm noctoware-revo 2>&1 | tail -4", timeout=1800)
+                rc, out = q("set -o pipefail; pacman -Syyu --noconfirm noctoware-revo 2>&1 | tail -4", timeout=1800)
             c.check("sudo pacman -S noctoware-revo", rc == 0, out)
             hyde_sum = f"cd /home/{u} && find .config/hypr .config/kitty -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum"
             _, hyde_before = q(hyde_sum)
@@ -81,10 +81,15 @@ def main() -> int:
             login_session(vm, u, a.password, "noctoware-hyprland.desktop", f"pgrep -u {u} -x Hyprland")
             try:
                 out = vm.wait_for(f"pgrep -u {u} -f quickshell", timeout=120)
-                c.check("Revo Shell (quickshell) runs in the Hyprland session", True, out)
             except TimeoutError as e:
-                c.check("Revo Shell (quickshell) runs in the Hyprland session", False, str(e))
-            time.sleep(10)
+                out = str(e)
+            time.sleep(15)
+            rc, out = q(f"pid=$(pgrep -u {u} -x Hyprland); tr '\\0' '\\n' < /proc/$pid/environ | grep -c HYPRLAND_CONFIG; "
+                        f"pgrep -u {u} -a quickshell | head -2; pgrep -u {u} -x waybar; echo end")
+            lines = out.split()
+            c.check("Revo Shell runs alone (quickshell up; no HyDE config, no waybar)",
+                    lines[0] == "0" and "quickshell" in out and "waybar" not in out
+                    and q(f"pgrep -u {u} -x waybar")[0] != 0, out)
             vm.screenshot("revo-macos")
             logout(vm, u)
             rc, out = q("noctoware-shell switch hyde", user=u)
