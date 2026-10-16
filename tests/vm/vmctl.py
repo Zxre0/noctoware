@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 
 OVMF_CODE = next((p for p in ("/usr/share/edk2/x64/OVMF_CODE.4m.fd", "/usr/share/OVMF/OVMF_CODE.fd") if os.path.exists(p)), None)
+OVMF_CODE_SB = next((p for p in ("/usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd",) if os.path.exists(p)), None)
 OVMF_VARS = next((p for p in ("/usr/share/edk2/x64/OVMF_VARS.4m.fd", "/usr/share/OVMF/OVMF_VARS.fd") if os.path.exists(p)), None)
 
 
@@ -186,7 +187,8 @@ class VM:
         self.qga = QGA(self.qga_path)
 
     def argv(self) -> list[str]:
-        a = ["qemu-system-x86_64", "-name", "noctoware-test", "-machine", "q35,accel=kvm", "-cpu", "host",
+        machine = "q35,accel=kvm" + (",smm=on" if self.firmware == "uefi-sb" else "")
+        a = ["qemu-system-x86_64", "-name", "noctoware-test", "-machine", machine, "-cpu", "host",
              "-smp", str(self.cpus), "-m", self.memory,
              "-qmp", f"unix:{self.qmp_path},server=on,wait=off",
              "-chardev", f"socket,path={self.qga_path},server=on,wait=off,id=qga0",
@@ -195,11 +197,14 @@ class VM:
              *(["-netdev", "user,id=n0", "-device", "virtio-net-pci,netdev=n0"] if self.net else ["-nic", "none"]),
              "-audiodev", "none,id=snd0", "-device", "intel-hda", "-device", "hda-output,audiodev=snd0",
              "-serial", f"file:{self.dir / 'serial.log'}", "-monitor", "none"]
-        if self.firmware == "uefi":
+        if self.firmware in ("uefi", "uefi-sb"):
             vars_copy = self.dir / "OVMF_VARS.fd"
             if not vars_copy.exists():
-                shutil.copy(OVMF_VARS, vars_copy)
-            a += ["-drive", f"if=pflash,format=raw,readonly=on,file={OVMF_CODE}",
+                shutil.copy(OVMF_VARS, vars_copy)   # fresh store = no keys = Setup Mode
+            code = OVMF_CODE_SB if self.firmware == "uefi-sb" else OVMF_CODE
+            if self.firmware == "uefi-sb":
+                a += ["-global", "driver=cfi.pflash01,property=secure,value=on"]
+            a += ["-drive", f"if=pflash,format=raw,readonly=on,file={code}",
                   "-drive", f"if=pflash,format=raw,file={vars_copy}"]
         if self.gl:
             node = render_node()

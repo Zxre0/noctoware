@@ -39,6 +39,7 @@ greeter) because QEMU cannot read GL scanouts in egl-headless mode.
 | `test_plasma_later.py --disk D` | `sudo pacman -S noctoware-plasma` on a Hyprland-only install |
 | `test_optin.py --disk D` | Claude Code via the official installer; Revo Shell fetch + switching |
 | `test_recovery.py --disk D` | snapper rollback with `noctoware-rollback`; LTS recovery kernel |
+| `test_secureboot.py --disk D` | Setup Mode → enroll keys → boot with Secure Boot enforced → kernel update re-signed |
 | `test_multimonitor.py --disk D` | two monitors (second on another virtio GPU: egl-headless enables only head 0) |
 | `run-all.sh [ISO]` | the whole release suite in two parallel lanes → `SUMMARY.md` |
 
@@ -64,6 +65,7 @@ Full summary: `tests/artifacts/release-20261016-0246/SUMMARY.md`.
 | Claude Code (official installer, consent) + Revo Shell (macOS) + shell switching | 10/10 |
 | snapshot rollback + LTS recovery kernel | 9/9 |
 | multi-monitor: two displays on two GPUs, waybar + wallpaper on each | 3/3 |
+| Secure Boot with own keys (`noctoware-secureboot`, OVMF secboot, enforced) | 7/7 (separate run) |
 
 What `test_installed.py` verifies: boots without the ISO; CachyOS kernel;
 `os-release`; no live-session leftovers (liveuser, NOPASSWD sudo, autologin,
@@ -80,7 +82,7 @@ Steam from Plasma and switching back; **real `sudo pacman -Syu`** upgrading a
 Noctoware package with snap-pac pre/post snapshots and boot-file backup.
 
 ### Not covered by VMs
-Physical GPUs (NVIDIA/AMD/Intel), Secure Boot, laptops (hybrid graphics,
+Physical GPUs (NVIDIA/AMD/Intel), real firmware Secure Boot implementations, laptops (hybrid graphics,
 suspend), Wi-Fi/Bluetooth hardware, high-DPI and mixed-refresh multi-monitor setups. Hardware
 compatibility is **not** claimed from VM results; see docs/GPU.md.
 

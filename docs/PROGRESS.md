@@ -55,4 +55,4 @@
 1. Publish `[noctoware]` (release key, public repo, `release-repo` workflow).
 2. ISO hosting (GitHub release assets are limited to 2 GiB).
 3. Real-hardware validation (NVIDIA RTX 20–50, AMD, Intel, hybrid laptop).
-4. Secure Boot support (sbctl integration).
+4. ~~Secure Boot~~ done: `noctoware-secureboot` (own keys via sbctl), verified in QEMU with enforcement.

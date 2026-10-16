@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# noctoware-secureboot — enable UEFI Secure Boot with your own keys (sbctl).
+#
+#   noctoware-secureboot status
+#   noctoware-secureboot setup [--yes] [--no-microsoft]
+#   noctoware-secureboot verify
+#
+# setup (firmware must be in *Setup Mode*: clear/reset the Secure Boot keys in
+# your firmware settings first):
+#   1. creates a key hierarchy with sbctl and enrolls it, together with
+#      Microsoft's keys unless --no-microsoft (GPU/NIC option ROMs and dual
+#      boot with Windows usually need them — omitting them can leave a machine
+#      without display output at boot)
+#   2. signs systemd-boot (incl. the *.efi.signed copy bootctl installs on
+#      updates) and the linux-cachyos / linux-cachyos-lts kernels
+#   3. sbctl's pacman hook re-signs everything on every update
+# Then reboot and turn Secure Boot on in the firmware (many firmwares enable it
+# automatically when keys are enrolled).
+#
+# Kernel modules: the CachyOS kernels do not enforce module signatures, so
+# out-of-tree modules (NVIDIA) keep loading under Secure Boot.  Only UEFI
+# installs with systemd-boot are supported by this tool.
+set -euo pipefail
+die() { echo "noctoware-secureboot: $*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || die "must run as root"
+command -v sbctl >/dev/null || die "sbctl is not installed (sudo pacman -S sbctl)"
+[[ -d /sys/firmware/efi ]] || die "not booted in UEFI mode"
+
+ESP=/boot
+SDBOOT_SRC=/usr/lib/systemd/boot/efi/systemd-bootx64.efi
+
+sign_all() {
+    local f
+    sbctl sign -s -o "$SDBOOT_SRC.signed" "$SDBOOT_SRC" >/dev/null
+    for f in "$ESP/EFI/systemd/systemd-bootx64.efi" "$ESP/EFI/BOOT/BOOTX64.EFI" "$ESP"/vmlinuz-*; do
+        [[ -f "$f" ]] && sbctl sign -s "$f" >/dev/null
+    done
+}
+
+cmd="${1:-status}"; shift || true
+yes=0 microsoft=1
+for a in "$@"; do
+    case "$a" in
+        --yes|-y) yes=1 ;;
+        --no-microsoft) microsoft=0 ;;
+        *) die "unknown option $a" ;;
+    esac
+done
+
+case "$cmd" in
+    status)
+        sbctl status
+        ;;
+    verify)
+        sbctl verify
+        ;;
+    setup)
+        st="$(sbctl status --json 2>/dev/null || true)"
+        if ! grep -q '"setup_mode": *true' <<<"$st"; then
+            die "firmware is not in Setup Mode: reset/clear the Secure Boot keys in your firmware settings, then retry"
+        fi
+        cat <<MSG
+This enrolls Secure Boot keys generated on this machine and signs the boot
+loader and kernels.  Keep a recovery USB at hand.  Microsoft keys: $([[ $microsoft -eq 1 ]] && echo included || echo NOT included)
+MSG
+        if [[ $yes -ne 1 ]]; then
+            read -r -p "Continue? [y/N] " ans; [[ "$ans" =~ ^[Yy]$ ]] || exit 1
+        fi
+        [[ -d /var/lib/sbctl/keys || -d /usr/share/secureboot/keys ]] || sbctl create-keys
+        if [[ $microsoft -eq 1 ]]; then sbctl enroll-keys --microsoft; else sbctl enroll-keys --yes-this-might-brick-my-machine; fi
+        sign_all
+        bootctl --esp-path="$ESP" update --graceful >/dev/null 2>&1 || true   # installs the .signed binary
+        sign_all
+        sbctl verify
+        echo "Done. Reboot; enable Secure Boot in the firmware if it is not on already."
+        ;;
+    *) die "usage: noctoware-secureboot status|setup|verify" ;;
+esac

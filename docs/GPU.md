@@ -34,9 +34,9 @@ time) uses `nvidia-open-dkms` + kernel headers instead of the prebuilt
 modules. Never both: the plan removes the other variant.
 
 ## Secure Boot
-The NVIDIA modules and systemd-boot are not signed with keys your firmware
-trusts. Noctoware 0.1 expects Secure Boot **disabled**; see
-`docs/SECURE_BOOT.md` for enrolling your own keys with `sbctl`.
+Install with Secure Boot disabled, then enable it with your own keys via
+`noctoware-secureboot` (docs/SECURE_BOOT.md). The CachyOS kernels do not
+enforce module signatures, so the NVIDIA modules keep loading.
 
 ## Hardware validation status
 Only virtual GPUs have been tested by the Noctoware test suite. Compatibility

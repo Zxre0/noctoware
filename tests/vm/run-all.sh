@@ -22,6 +22,9 @@ lane_a() {
             --artifacts "$R/$t" >"$R/$t.log" 2>&1
         rm -f "$R/$t.qcow2"
     done
+    cp "$R/hypr/install/disk.qcow2" "$R/sb.qcow2"     # Secure Boot firmware starts with fresh vars
+    py "$V/test_secureboot.py" --disk "$R/sb.qcow2" --artifacts "$R/secureboot" >"$R/secureboot.log" 2>&1
+    rm -f "$R/sb.qcow2"
 }
 lane_b() {
     py "$V/test_live.py" "$iso" --bios --artifacts "$R/live-bios" >"$R/live-bios.log" 2>&1
@@ -50,7 +53,7 @@ wait $a $b
     echo "| scenario | result |"
     echo "|---|---|"
     for l in live-uefi live-bios hypr-install hypr-installed bios-install bios-installed ext4-install \
-             ext4-installed plasma-nvidia-install plasma-nvidia-installed plasma_later optin recovery multimonitor; do
+             ext4-installed plasma-nvidia-install plasma-nvidia-installed plasma_later optin recovery multimonitor secureboot; do
         res="$(grep -hoE '[0-9]+/[0-9]+ checks passed' "$R/$l.log" 2>/dev/null | tail -1)"
         echo "| $l | ${res:-did not finish} |"
     done

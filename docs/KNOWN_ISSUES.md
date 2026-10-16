@@ -10,7 +10,9 @@
   serve the repository locally instead. **The GitHub repository must be public**
   for pacman to download release assets without credentials (or move hosting,
   see docs/REPOSITORY.md).
-* **Secure Boot** unsupported out of the box (see docs/SECURE_BOOT.md).
+* **Secure Boot** is off after installation (no shim / Microsoft-signed
+  boot path); enable it afterwards with your own keys: `noctoware-secureboot`
+  (docs/SECURE_BOOT.md). BIOS/GRUB installs are not covered.
 * **Snapshot booting** from the boot menu is not available with systemd-boot
   (UEFI default); use `noctoware-rollback` (docs/RECOVERY.md).
 * **NVIDIA pre-Turing** GPUs (GTX 10 and older) use nouveau; legacy

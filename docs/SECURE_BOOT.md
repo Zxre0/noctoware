@@ -1,20 +1,34 @@
-# Secure Boot (not supported out of the box in 0.1)
+# Secure Boot
 
-Noctoware 0.1 installs an unsigned systemd-boot and, on NVIDIA machines,
-kernel modules that are not signed by a key your firmware trusts. Disable
-Secure Boot in firmware setup before installing.
+Noctoware supports UEFI Secure Boot with **your own keys** on systemd-boot
+installs (the default on UEFI). There is no shim/Microsoft-signed path yet,
+so Secure Boot is off on a fresh install; turn it on afterwards:
 
-To use Secure Boot with your own keys afterwards (advanced):
-```
-sudo pacman -S sbctl
-sudo sbctl status            # firmware must be in Setup Mode
-sudo sbctl create-keys
-sudo sbctl enroll-keys -m    # -m keeps Microsoft keys (needed by many GPUs' option ROMs)
-sudo sbctl sign -s /boot/EFI/systemd/systemd-bootx64.efi
-sudo sbctl sign -s /boot/EFI/BOOT/BOOTX64.EFI
-sudo sbctl sign -s /boot/vmlinuz-linux-cachyos
-sudo sbctl sign -s /boot/vmlinuz-linux-cachyos-lts
-```
-sbctl's pacman hook re-signs files on updates. Out-of-tree modules (NVIDIA)
-additionally need module signing or a kernel that does not enforce module
-signatures under lockdown; this is outside the scope of 0.1.
+1. In the firmware settings, reset/clear the Secure Boot keys so the firmware
+   is in **Setup Mode** (wording varies: "Reset to Setup Mode", "Clear keys").
+2. Boot Noctoware and run
+   ```
+   sudo pacman -S sbctl
+   sudo noctoware-secureboot setup          # add --no-microsoft only if you know you don't need them
+   sudo reboot
+   ```
+   This creates keys with `sbctl`, enrolls them **together with Microsoft's**
+   (GPU/NIC option ROMs and Windows dual-boot usually need them), and signs
+   systemd-boot (including the `systemd-bootx64.efi.signed` copy `bootctl`
+   installs on updates) and both kernels.
+3. If the firmware does not enable Secure Boot by itself, enable it.
+
+`sbctl`'s pacman hook re-signs boot files on every update.
+`noctoware-secureboot status` / `verify` show the state.
+
+**NVIDIA and other out-of-tree modules** keep working: the CachyOS kernels
+enable no lockdown and do not enforce module signatures under Secure Boot
+(`/sys/kernel/security/lockdown` = `[none]`, `sig_enforce` = `N`, verified in
+QEMU with Secure Boot enforced).
+
+Verified in QEMU (OVMF Secure Boot firmware): `tests/vm/test_secureboot.py` —
+Setup Mode → enroll → reboot with Secure Boot enforced → kernel update
+re-signed automatically → boots again (7/7). Real-firmware behaviour varies;
+keep the Noctoware ISO at hand and know how to disable Secure Boot.
+
+BIOS/GRUB installs: not supported by this tool.

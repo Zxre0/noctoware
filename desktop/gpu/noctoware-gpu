@@ -203,8 +203,8 @@ def make_plan(gpus: list[Gpu], *, dkms: bool = False, secure_boot: bool | None =
         files["/etc/environment.d/50-noctoware-nvidia.conf"] = "\n".join(env) + "\n"
         if secure_boot:
             warnings.append(
-                "Secure Boot is enabled: NVIDIA kernel modules are not signed with a key your "
-                "firmware trusts. Disable Secure Boot or enroll keys with sbctl (docs/SECURE_BOOT.md).")
+                "Secure Boot is enabled: the installed system boots unsigned. Disable Secure Boot "
+                "to install, then enable it with your own keys: noctoware-secureboot (docs/SECURE_BOOT.md).")
     if virtual or "unknown" in kinds or not gpus:
         install += SOFT_PKGS  # lavapipe: software Vulkan so Steam/Vulkan apps still start
     if "virtio" in virtual:
