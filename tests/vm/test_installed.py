@@ -29,20 +29,27 @@ from vmctl import VM, RepoServer  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def sddm_login(vm: VM, user: str, password: str, session_index_down: int = 0) -> None:
-    """Log in through the Noctoware SDDM theme with the keyboard only."""
-    vm.qmp.keys("ctrl-a")
+# Field positions of the Noctoware SDDM theme at 1920x1080.
+SDDM_USER, SDDM_PASSWORD, SDDM_SESSION = (364, 596), (364, 656), (304, 716)
+
+
+def sddm_login(vm: VM, user: str, password: str, session_index_down: int | None = None) -> None:
+    """Log in through the Noctoware SDDM theme (works whether or not SDDM
+    remembered the last user).  session_index_down: pick the Nth session."""
+    vm.qmp.click(*SDDM_USER, 1920, 1080)
+    vm.qmp.keys("ctrl-a", "backspace")
     vm.qmp.type(user)
-    vm.qmp.keys("tab")
-    vm.qmp.type(password)
-    if session_index_down:
-        vm.qmp.keys("tab")                       # session combo box
-        vm.qmp.keys("spc")
-        time.sleep(0.5)
+    if session_index_down is not None:
+        vm.qmp.click(*SDDM_SESSION, 1920, 1080)
+        time.sleep(0.8)
+        vm.qmp.keys("home")
         for _ in range(session_index_down):
             vm.qmp.keys("down")
         vm.qmp.keys("ret")
-        vm.qmp.keys("shift-tab")                 # back to the password field
+        time.sleep(0.5)
+    vm.qmp.click(*SDDM_PASSWORD, 1920, 1080)
+    vm.qmp.keys("ctrl-a", "backspace")
+    vm.qmp.type(password)
     vm.qmp.keys("ret")
 
 
@@ -119,8 +126,10 @@ def main() -> int:
         c.check("Steam/gaming stack, Codex and both kernels installed", rc == 0, out)
         rc, out = q(f"getent passwd {a.user}")
         c.check("installer-created user exists with zsh", out.endswith("/usr/bin/zsh"), out)
-        rc, out = q("systemctl is-active sddm NetworkManager bluetooth; systemctl is-enabled snapper-cleanup.timer fstrim.timer")
-        c.check("services: sddm, NetworkManager, bluetooth, snapper-cleanup, fstrim", "inactive" not in out and "disabled" not in out, out)
+        # bluetooth.service only starts when an adapter exists (none in the VM): check it is enabled
+        rc, out = q("systemctl is-active sddm NetworkManager; systemctl is-enabled bluetooth snapper-cleanup.timer fstrim.timer")
+        c.check("services: sddm + NetworkManager active; bluetooth, snapper-cleanup, fstrim enabled",
+                out.split() == ["active", "active", "enabled", "enabled", "enabled"], out)
         rc, out = q("ls /usr/share/wayland-sessions/; cat /var/lib/sddm/state.conf")
         want = ["noctoware-hyprland.desktop"] + (["plasma.desktop"] if a.plasma else [])
         c.check("SDDM sessions: " + ", ".join(want) + (" (no plasma)" if not a.plasma else ""),
@@ -158,7 +167,7 @@ def main() -> int:
                     .format(u=a.user), user=None)
         c.check("portal (screen sharing), PipeWire and WirePlumber running in the session",
                 len(out.splitlines()) >= 4, out)
-        rc, out = q("codex --version; claude --version </dev/null; echo rc=$?", user=a.user)
+        rc, out = q("codex --version && { claude --version </dev/null; echo rc=$?; }", user=a.user)
         c.check("codex works; claude offers the consent-based setup", "rc=127" in out and "noctoware-claude-setup" in out, out)
 
         # ---- real `sudo pacman -Syu`, with [noctoware] served from this machine
@@ -167,7 +176,7 @@ def main() -> int:
         with RepoServer(bump) as url:
             q(f"sed -i 's|^Server = .*|Server = {url}|' /etc/pacman.d/noctoware-mirrorlist")
             before = q("pacman -Q noctoware-welcome")[1]
-            rc, out = q("pacman -Syu --noconfirm 2>&1 | tail -25", timeout=3600)
+            rc, out = q("set -o pipefail; pacman -Syu --noconfirm 2>&1 | tail -25", timeout=3600)
             after = q("pacman -Q noctoware-welcome")[1]
             c.check("sudo pacman -Syu succeeds (Arch + CachyOS + [noctoware], signatures verified)", rc == 0, out)
             c.check("Noctoware package upgraded via pacman", before != after, f"{before} -> {after}")

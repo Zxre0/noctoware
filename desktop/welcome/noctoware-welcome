@@ -36,9 +36,10 @@ window { background: #0b0712; color: #e9ddff; }
 .mono { font-family: monospace; font-size: 12px; }
 button { border-radius: 9px; background: #241838; color: #e9ddff; border: 1px solid #3b2366; }
 button:hover { background: #2f2048; }
-button.suggested-action { background: #9b6bff; color: #0b0712; border: none; }
+button.suggested-action { background: #9b6bff; background-image: none; color: #0b0712; border: none; }
 button.suggested-action:hover { background: #ad85ff; }
-button label { color: inherit; }
+button.suggested-action label { color: #0b0712; font-weight: 600; }
+button label { color: #e9ddff; }
 """
 
 
@@ -338,8 +339,10 @@ class App(Gtk.Application):
     def do_activate(self):
         prov = Gtk.CssProvider()
         prov.load_from_data(CSS)
+        # Above USER priority: HyDE's wallbash writes ~/.config/gtk-4.0/gtk.css,
+        # which would otherwise restyle (and wash out) the Noctoware palette.
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), prov,
-                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+                                                  Gtk.STYLE_PROVIDER_PRIORITY_USER + 100)
         win = self.get_active_window() or Welcome(self)
         win.present()
 

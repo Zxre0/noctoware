@@ -2,7 +2,7 @@
 # make-bump.sh REPO_COPY — add noctoware-welcome with pkgrel+1 (signed, indexed)
 # to a copy of [noctoware], so VM tests can exercise a real package upgrade.
 source "$(dirname "$0")/../../scripts/lib/common.sh"
-dst="$1"; [[ -f "$dst/noctoware.db.tar.gz" ]] || die "not a repo copy: $dst" "$E_USAGE"
+dst="$(realpath "$1")"; [[ -f "$dst/noctoware.db.tar.gz" ]] || die "not a repo copy: $dst" "$E_USAGE"
 tmp="$NOCTO_ROOT/packages/.bump-noctoware-welcome"   # inside the tree so $startdir/../.. resolves
 rm -rf "$tmp"; cp -r "$NOCTO_ROOT/packages/noctoware-welcome" "$tmp"
 trap 'rm -rf "$tmp"' EXIT

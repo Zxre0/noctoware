@@ -73,7 +73,7 @@ class QMP:
             time.sleep(0.1)
         return path
 
-    def keys(self, *combos: str, hold_ms: int = 80, gap: float = 0.08) -> None:
+    def keys(self, *combos: str, hold_ms: int = 50, gap: float = 0.2) -> None:
         """Send key combos like 'alt-n', 'ret', 'tab', 'shift-tab'."""
         for combo in combos:
             keys = [{"type": "qcode", "data": k} for k in combo.split("-")]
@@ -89,13 +89,13 @@ class QMP:
     def type(self, text: str) -> None:
         for ch in text:
             if ch.isalpha():
-                self.keys(("shift-" if ch.isupper() else "") + ch.lower(), gap=0.09)
+                self.keys(("shift-" if ch.isupper() else "") + ch.lower(), gap=0.22)
             elif ch.isdigit():
-                self.keys(ch, gap=0.09)
+                self.keys(ch, gap=0.22)
             elif ch in self._PLAIN:
-                self.keys(self._PLAIN[ch], gap=0.09)
+                self.keys(self._PLAIN[ch], gap=0.22)
             elif ch in self._SHIFTED:
-                self.keys("shift-" + self._SHIFTED[ch], gap=0.09)
+                self.keys("shift-" + self._SHIFTED[ch], gap=0.22)
             else:
                 raise ValueError(f"cannot type {ch!r}")
 
@@ -144,7 +144,8 @@ class QGA:
     def run(self, cmd: str, timeout: float = 120, user: str | None = None) -> tuple[int, str]:
         """Run a shell command in the guest; returns (exit code, stdout+stderr)."""
         if user:
-            cmd = f"runuser -u {user} -- bash -lc {json.dumps(cmd)}"
+            import shlex  # single-quote: the outer shell must not expand $?, $VAR, ...
+            cmd = f"runuser -u {user} -- bash -lc {shlex.quote(cmd)}"
         pid = self._call("guest-exec", path="/bin/bash", arg=["-c", cmd], **{"capture-output": True})["pid"]
         deadline = time.time() + timeout
         while time.time() < deadline:
@@ -284,6 +285,14 @@ class VM:
                 "for d in /run/user/*/; do u=$(stat -c %U $d); s=$(ls $d | grep -E '^wayland-[0-9]+$' | head -1); "
                 "[ -n \"$s\" ] && { runuser -u $u -- env XDG_RUNTIME_DIR=$d WAYLAND_DISPLAY=$s grim -t png - | base64 -w0; exit 0; }; done; exit 3",
                 timeout=60)
+            if rc == 0 and out:
+                p.write_bytes(base64.b64decode(out))
+                return p
+        except Exception:  # noqa: BLE001
+            pass
+        try:  # X11 (SDDM's greeter runs on Xorg)
+            rc, out = self.qga.run("a=$(ls /run/sddm/xauth_* 2>/dev/null | head -1); [ -n \"$a\" ] && "
+                                   "DISPLAY=:0 XAUTHORITY=$a import -window root png:- | base64 -w0", timeout=60)
             if rc == 0 and out:
                 p.write_bytes(base64.b64decode(out))
                 return p
