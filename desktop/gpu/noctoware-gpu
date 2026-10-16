@@ -1,0 +1,340 @@
+#!/usr/bin/env python3
+"""noctoware-gpu — detect display adapters and choose matching driver packages.
+
+Subcommands
+  detect [--json]          list GPUs found in sysfs
+  plan   [--json]          show packages to install/remove and config to write
+  apply  --root DIR        apply the plan to an installed system mounted at DIR
+                           (used by the Calamares installer; never touches disks)
+
+Testing hooks (also used by tests/unit/test_gpu.py)
+  --sysfs-root DIR         read PCI devices from DIR/bus/pci/devices instead of /sys
+  --mock-ids LIST          comma separated vendor:device[:class] PCI ids, e.g.
+                           10de:2684,8086:a780  (class defaults to 0x030000)
+  --dkms                   prefer nvidia-open-dkms over CachyOS prebuilt modules
+  --secure-boot on|off     override Secure Boot detection
+
+Policy (see docs/GPU.md):
+  * Mesa + Vulkan loader (64- and 32-bit) are always installed.
+  * Only the Vulkan drivers for vendors that are present are kept.
+  * NVIDIA Turing (RTX 20/GTX 16) and newer use the NVIDIA open kernel modules,
+    prebuilt for linux-cachyos and linux-cachyos-lts.  Older NVIDIA GPUs stay
+    on nouveau (the proprietary legacy branches are not packaged for 0.1).
+  * Hybrid laptops (NVIDIA + Intel/AMD iGPU) keep the iGPU stack, add the
+    NVIDIA stack and nvidia-prime, and do NOT force NVIDIA-only GL/GBM env.
+"""
+from __future__ import annotations
+
+import argparse
+import dataclasses
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+VENDOR_NVIDIA = 0x10DE
+VENDOR_AMD = 0x1002
+VENDOR_INTEL = 0x8086
+VIRTUAL_VENDORS = {
+    0x1AF4: "virtio",      # virtio-gpu
+    0x1B36: "qxl",         # Red Hat QXL
+    0x1234: "bochs",       # QEMU stdvga / bochs-display
+    0x15AD: "vmware",      # VMware SVGA
+    0x80EE: "virtualbox",  # VirtualBox VGA
+    0x1414: "hyperv",      # Hyper-V
+    0x1013: "cirrus",      # Cirrus (old QEMU default)
+}
+# First PCI device id of the Turing generation (TU102).  Every NVIDIA GPU with
+# a device id >= 0x1E00 is Turing or newer (RTX 20/GTX 16, RTX 30/40/50) and
+# has the GSP firmware the open kernel modules require.
+NVIDIA_TURING_MIN_DEVICE = 0x1E00
+
+MESA_BASE = ["mesa", "lib32-mesa", "vulkan-icd-loader", "lib32-vulkan-icd-loader", "vulkan-mesa-layers"]
+INTEL_PKGS = ["vulkan-intel", "lib32-vulkan-intel", "intel-media-driver", "vpl-gpu-rt"]
+AMD_PKGS = ["vulkan-radeon", "lib32-vulkan-radeon"]
+NOUVEAU_PKGS = ["vulkan-nouveau", "lib32-vulkan-nouveau"]
+SOFT_PKGS = ["vulkan-swrast", "lib32-vulkan-swrast"]
+VIRTIO_PKGS = ["vulkan-virtio", "lib32-vulkan-virtio"]
+NVIDIA_COMMON = ["nvidia-utils", "lib32-nvidia-utils", "nvidia-settings", "libva-nvidia-driver", "egl-wayland"]
+NVIDIA_PREBUILT = ["linux-cachyos-nvidia-open", "linux-cachyos-lts-nvidia-open"]
+NVIDIA_DKMS = ["nvidia-open-dkms", "dkms", "linux-cachyos-headers", "linux-cachyos-lts-headers"]
+GUEST_TOOLS = {
+    "virtio": ["spice-vdagent", "qemu-guest-agent"],
+    "qxl": ["spice-vdagent", "qemu-guest-agent"],
+    "bochs": ["qemu-guest-agent"],
+    "vmware": ["open-vm-tools"],
+    "virtualbox": ["virtualbox-guest-utils"],
+}
+# Everything the live ISO may carry that is vendor specific; whatever the
+# plan does not keep is removed from the installed system.
+ALL_VENDOR_PKGS = sorted(set(INTEL_PKGS + AMD_PKGS + NOUVEAU_PKGS + VIRTIO_PKGS + SOFT_PKGS
+                             + NVIDIA_COMMON + NVIDIA_PREBUILT + ["nvidia-open-dkms", "nvidia-prime"]
+                             + [p for v in GUEST_TOOLS.values() for p in v]))
+
+
+@dataclasses.dataclass(frozen=True)
+class Gpu:
+    slot: str
+    vendor: int
+    device: int
+    pci_class: int
+    boot_vga: bool = False
+
+    @property
+    def kind(self) -> str:
+        if self.vendor == VENDOR_NVIDIA:
+            return "nvidia"
+        if self.vendor == VENDOR_AMD:
+            return "amd"
+        if self.vendor == VENDOR_INTEL:
+            return "intel"
+        return VIRTUAL_VENDORS.get(self.vendor, "unknown")
+
+    @property
+    def nvidia_open_supported(self) -> bool:
+        return self.vendor == VENDOR_NVIDIA and self.device >= NVIDIA_TURING_MIN_DEVICE
+
+    def to_dict(self) -> dict:
+        d = dataclasses.asdict(self)
+        d.update(id=f"{self.vendor:04x}:{self.device:04x}", kind=self.kind,
+                 pci_class=f"0x{self.pci_class:06x}", vendor=f"0x{self.vendor:04x}",
+                 device=f"0x{self.device:04x}")
+        if self.vendor == VENDOR_NVIDIA:
+            d["nvidia_open_supported"] = self.nvidia_open_supported
+        return d
+
+
+def _read_hex(p: Path) -> int:
+    return int(p.read_text().strip(), 16)
+
+
+def scan_sysfs(sysfs_root: Path = Path("/sys")) -> list[Gpu]:
+    gpus = []
+    base = sysfs_root / "bus" / "pci" / "devices"
+    if not base.is_dir():
+        return gpus
+    for dev in sorted(base.iterdir()):
+        try:
+            cls = _read_hex(dev / "class")
+        except (OSError, ValueError):
+            continue
+        if cls >> 16 != 0x03:  # display controller (VGA 0x0300, 3D 0x0302, other 0x0380)
+            continue
+        boot = (dev / "boot_vga").is_file() and (dev / "boot_vga").read_text().strip() == "1"
+        gpus.append(Gpu(dev.name, _read_hex(dev / "vendor"), _read_hex(dev / "device"), cls, boot))
+    return gpus
+
+
+def parse_mock_ids(spec: str) -> list[Gpu]:
+    gpus = []
+    for i, item in enumerate(filter(None, (s.strip() for s in spec.split(",")))):
+        parts = item.split(":")
+        if len(parts) not in (2, 3):
+            raise ValueError(f"bad mock id {item!r}, expected vendor:device[:class]")
+        cls = int(parts[2], 16) if len(parts) == 3 else 0x030000
+        gpus.append(Gpu(f"mock:{i}", int(parts[0], 16), int(parts[1], 16), cls, i == 0))
+    return gpus
+
+
+def secure_boot_enabled(sysfs_root: Path = Path("/sys")) -> bool | None:
+    """True/False from the SecureBoot EFI variable, None on BIOS or unreadable."""
+    efivars = sysfs_root / "firmware" / "efi" / "efivars"
+    for var in efivars.glob("SecureBoot-*") if efivars.is_dir() else []:
+        try:
+            data = var.read_bytes()
+            return bool(data[-1])  # 4 attribute bytes followed by a 1-byte value
+        except OSError:
+            return None
+    return None
+
+
+@dataclasses.dataclass
+class Plan:
+    gpus: list[Gpu]
+    profile: str
+    install: list[str]
+    remove: list[str]
+    services: list[str]
+    files: dict[str, str]
+    warnings: list[str]
+
+    def to_dict(self) -> dict:
+        d = dataclasses.asdict(self)
+        d["gpus"] = [g.to_dict() for g in self.gpus]
+        return d
+
+
+def make_plan(gpus: list[Gpu], *, dkms: bool = False, secure_boot: bool | None = None) -> Plan:
+    kinds = {g.kind for g in gpus}
+    nvidia = [g for g in gpus if g.kind == "nvidia"]
+    nvidia_modern = [g for g in nvidia if g.nvidia_open_supported]
+    nvidia_legacy = [g for g in nvidia if not g.nvidia_open_supported]
+    igpu = kinds & {"intel", "amd"}
+    virtual = sorted(kinds & set(VIRTUAL_VENDORS.values()))
+
+    install = list(MESA_BASE)
+    services: list[str] = []
+    files: dict[str, str] = {}
+    warnings: list[str] = []
+
+    if "intel" in kinds:
+        install += INTEL_PKGS
+    if "amd" in kinds:
+        install += AMD_PKGS
+    if nvidia_legacy:
+        install += NOUVEAU_PKGS
+        warnings.append(
+            "NVIDIA GPU(s) older than Turing found (" + ", ".join(g.to_dict()["id"] for g in nvidia_legacy)
+            + "): the open kernel modules do not support them; using nouveau.")
+    if nvidia_modern:
+        install += NVIDIA_COMMON + (NVIDIA_DKMS if dkms else NVIDIA_PREBUILT)
+        services += ["nvidia-suspend.service", "nvidia-hibernate.service", "nvidia-resume.service"]
+        files["/etc/modprobe.d/noctoware-nvidia.conf"] = (
+            "# Written by noctoware-gpu. Required for Wayland compositors.\n"
+            "options nvidia_drm modeset=1 fbdev=1\n")
+        env = ["# Written by noctoware-gpu.", "LIBVA_DRIVER_NAME=nvidia", "NVD_BACKEND=direct"]
+        if igpu:
+            install.append("nvidia-prime")
+        else:
+            env += ["__GLX_VENDOR_LIBRARY_NAME=nvidia", "GBM_BACKEND=nvidia-drm"]
+        files["/etc/environment.d/50-noctoware-nvidia.conf"] = "\n".join(env) + "\n"
+        if secure_boot:
+            warnings.append(
+                "Secure Boot is enabled: NVIDIA kernel modules are not signed with a key your "
+                "firmware trusts. Disable Secure Boot or enroll keys with sbctl (docs/SECURE_BOOT.md).")
+    if virtual or "unknown" in kinds or not gpus:
+        install += SOFT_PKGS  # lavapipe: software Vulkan so Steam/Vulkan apps still start
+    if "virtio" in virtual:
+        install += VIRTIO_PKGS
+    for v in virtual:
+        for p in GUEST_TOOLS.get(v, []):
+            install.append(p)
+            if p == "qemu-guest-agent":
+                services.append("qemu-guest-agent.service")
+            elif p == "open-vm-tools":
+                services.append("vmtoolsd.service")
+            elif p == "virtualbox-guest-utils":
+                services.append("vboxservice.service")
+    # Steam needs *some* 32-bit Vulkan driver.
+    if not any(p.startswith("lib32-vulkan-") or p == "lib32-nvidia-utils" for p in install):
+        install += SOFT_PKGS
+
+    install = list(dict.fromkeys(install))
+    remove = [p for p in ALL_VENDOR_PKGS if p not in install]
+
+    if nvidia_modern and igpu:
+        profile = "hybrid-nvidia"
+    elif nvidia_modern:
+        profile = "nvidia"
+    elif virtual and not (igpu or nvidia):
+        profile = "virtual"
+    elif igpu or nvidia_legacy:
+        profile = "+".join(sorted(igpu | ({"nouveau"} if nvidia_legacy else set())))
+    else:
+        profile = "fallback"
+    return Plan(gpus, profile, install, remove, list(dict.fromkeys(services)), files, warnings)
+
+
+def _run(cmd: list[str], check: bool = True) -> int:
+    print("+", " ".join(cmd), flush=True)
+    r = subprocess.run(cmd)
+    if check and r.returncode != 0:
+        raise SystemExit(f"command failed ({r.returncode}): {' '.join(cmd)}")
+    return r.returncode
+
+
+def apply_plan(plan: Plan, root: Path, offline_cache: Path | None) -> None:
+    """Install/remove packages in the target system mounted at *root*."""
+    if not (root / "etc" / "os-release").exists():
+        raise SystemExit(f"{root} does not look like an installed system")
+    chroot = ["arch-chroot", str(root)]
+    pac = ["pacman", "--noconfirm", "--needed"]
+    if offline_cache and offline_cache.is_dir():
+        # Bind the ISO's package cache into the target and let pacman pick
+        # packages from there (verified against the synced DB signatures).
+        cache_in_root = root / "var" / "cache" / "pacman" / "noctoware-offline"
+        cache_in_root.mkdir(parents=True, exist_ok=True)
+        _run(["mount", "--bind", str(offline_cache), str(cache_in_root)])
+        pac += ["--cachedir", "/var/cache/pacman/noctoware-offline", "--cachedir", "/var/cache/pacman/pkg"]
+    try:
+        installed = subprocess.run(chroot + ["pacman", "-Qq"], capture_output=True, text=True, check=True).stdout.split()
+        to_remove = [p for p in plan.remove if p in installed]
+        if to_remove:
+            # -Rdd is never used: anything still required (e.g. by steam) stays.
+            for p in to_remove:
+                _run(chroot + ["pacman", "-R", "--noconfirm", p], check=False)
+        missing = [p for p in plan.install if p not in installed]
+        if missing:
+            rc = _run(chroot + pac + ["-S"] + missing, check=False)
+            if rc != 0:
+                print("offline install incomplete; retrying from configured mirrors", flush=True)
+                _run(chroot + ["pacman", "--noconfirm", "--needed", "-Sy"] + missing)
+        for path, content in plan.files.items():
+            target = root / path.lstrip("/")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+        for svc in plan.services:
+            _run(chroot + ["systemctl", "enable", svc], check=False)
+        state = root / "etc" / "noctoware" / "gpu.json"
+        state.parent.mkdir(parents=True, exist_ok=True)
+        state.write_text(json.dumps(plan.to_dict(), indent=2) + "\n")
+    finally:
+        if offline_cache and offline_cache.is_dir():
+            subprocess.run(["umount", str(root / "var/cache/pacman/noctoware-offline")])
+
+
+def _print_plan(plan: Plan) -> None:
+    print(f"profile:  {plan.profile}")
+    for g in plan.gpus:
+        d = g.to_dict()
+        extra = "" if g.vendor != VENDOR_NVIDIA else f" (open modules: {'yes' if g.nvidia_open_supported else 'no'})"
+        print(f"gpu:      {d['slot']} {d['id']} {g.kind}{' [boot]' if g.boot_vga else ''}{extra}")
+    print("install:  " + " ".join(plan.install))
+    print("remove:   " + (" ".join(plan.remove) or "-"))
+    print("services: " + (" ".join(plan.services) or "-"))
+    for f in plan.files:
+        print(f"write:    {f}")
+    for w in plan.warnings:
+        print(f"WARNING:  {w}")
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="noctoware-gpu", description=__doc__.split("\n")[0])
+    ap.add_argument("command", choices=["detect", "plan", "apply"])
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--sysfs-root", type=Path, default=Path("/sys"))
+    ap.add_argument("--mock-ids")
+    ap.add_argument("--dkms", action="store_true")
+    ap.add_argument("--secure-boot", choices=["on", "off"])
+    ap.add_argument("--root", type=Path)
+    ap.add_argument("--offline-cache", type=Path, default=Path("/opt/noctoware/offline/pkg"))
+    a = ap.parse_args(argv)
+
+    gpus = parse_mock_ids(a.mock_ids) if a.mock_ids else scan_sysfs(a.sysfs_root)
+    sb = {"on": True, "off": False}.get(a.secure_boot) if a.secure_boot else secure_boot_enabled(a.sysfs_root)
+    dkms = a.dkms or os.environ.get("NOCTO_NVIDIA_DKMS") == "1"
+
+    if a.command == "detect":
+        if a.json:
+            print(json.dumps({"gpus": [g.to_dict() for g in gpus], "secure_boot": sb}, indent=2))
+        else:
+            for g in gpus:
+                print(g.to_dict()["id"], g.kind, g.slot, "boot_vga" if g.boot_vga else "")
+        return 0
+    plan = make_plan(gpus, dkms=dkms, secure_boot=sb)
+    if a.command == "plan":
+        print(json.dumps(plan.to_dict(), indent=2)) if a.json else _print_plan(plan)
+        return 0
+    if a.root is None:
+        ap.error("apply requires --root")
+    if os.geteuid() != 0:
+        print("apply must run as root", file=sys.stderr)
+        return 1
+    _print_plan(plan)
+    apply_plan(plan, a.root, a.offline_cache)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

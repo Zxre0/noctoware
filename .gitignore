@@ -1,0 +1,14 @@
+/out/
+/work/
+/build/
+/repository/x86_64/
+/repository/local/
+/keys/private/
+/noctoware.local.conf
+/tests/artifacts/
+packages/*/src/
+packages/*/pkg/
+packages/*/*.pkg.tar.*
+packages/*/*.log
+*.pyc
+__pycache__/

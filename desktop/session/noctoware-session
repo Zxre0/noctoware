@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Entry point of the "Noctoware Hyprland" SDDM session.
+# 1. give this session its own ~/.config/kdeglobals (HyDE and Plasma both own it)
+# 2. deploy/refresh HyDE for this user (no-op when already current)
+# 3. hand over to uwsm-managed Hyprland, as HyDE expects
+/usr/lib/noctoware/kdeglobals-swap hyprland || true
+if ! /usr/bin/noctoware-hyde-deploy --quiet; then
+    logger -t noctoware-session "HyDE deployment reported an error; starting Hyprland anyway"
+fi
+if command -v uwsm >/dev/null; then
+    exec uwsm start -e -D Hyprland hyprland.desktop
+fi
+exec /usr/bin/start-hyprland

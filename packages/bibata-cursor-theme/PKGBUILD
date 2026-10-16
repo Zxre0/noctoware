@@ -1,0 +1,23 @@
+# Maintainer: Noctoware Project
+# HyDE's default cursor (referenced by its GTK, Hyprland and env configs).
+# Not in the official repos; repackaged unmodified from the upstream release.
+pkgname=bibata-cursor-theme
+pkgver=2.0.7
+pkgrel=1
+pkgdesc="Material based cursor theme (Bibata Modern/Original, prebuilt X11 cursors)"
+arch=('any')
+url="https://github.com/ful1e5/Bibata_Cursor"
+license=('GPL-3.0-only')
+source=("Bibata-$pkgver.tar.xz::https://github.com/ful1e5/Bibata_Cursor/releases/download/v$pkgver/Bibata.tar.xz"
+        "LICENSE-$pkgver::https://raw.githubusercontent.com/ful1e5/Bibata_Cursor/v$pkgver/LICENSE")
+noextract=("Bibata-$pkgver.tar.xz")
+sha256sums=('172e33c4ae415278384dcecc7d1a9b7a024266bc944bc751fd86532be1cc6251'
+            'fe92c7ac268ce17193b98298336d3793a843a94eba9efc7ad112f9f48ad9b214')
+
+package() {
+  install -d "$pkgdir/usr/share/icons"
+  bsdtar -xf "Bibata-$pkgver.tar.xz" -C "$pkgdir/usr/share/icons" --no-same-owner
+  find "$pkgdir/usr/share/icons" -type d -exec chmod 755 {} +
+  find "$pkgdir/usr/share/icons" -type f -exec chmod 644 {} +
+  install -Dm644 "LICENSE-$pkgver" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

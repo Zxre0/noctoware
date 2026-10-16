@@ -1,0 +1,13 @@
+$HOME/.config/waybar/theme.css|${scrDir}/wbarconfgen.sh
+
+/* Noctoware — MIT, (c) Noctoware Project */
+@define-color bar-bg rgba(7, 4, 12, 0.35);
+
+@define-color main-bg #0b0712;
+@define-color main-fg #e9ddff;
+
+@define-color wb-act-bg #9b6bff;
+@define-color wb-act-fg #0b0712;
+
+@define-color wb-hvr-bg #c4a7ff;
+@define-color wb-hvr-fg #0b0712;

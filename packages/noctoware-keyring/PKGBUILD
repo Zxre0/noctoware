@@ -1,0 +1,20 @@
+# Maintainer: Noctoware Project
+# Ships the public key(s) that sign [noctoware] packages and databases.
+# The keyring source of truth is keys/public/ in the project repository.
+pkgname=noctoware-keyring
+pkgver=20261015
+pkgrel=1
+pkgdesc="Noctoware Linux PGP keyring for pacman"
+arch=('any')
+url="https://github.com/noctoware/noctoware"
+license=('MIT')
+install=noctoware-keyring.install
+
+package() {
+  local root keys; root="$(realpath "$startdir/../..")"; keys="$root/keys/public"
+  [[ -s "$keys/noctoware.gpg" && -s "$keys/noctoware-trusted" ]] || {
+    echo "keys/public/noctoware.gpg missing: run scripts/gen-dev-key.sh or import the release key" >&2; return 1; }
+  install -Dm644 "$keys/noctoware.gpg" "$pkgdir/usr/share/pacman/keyrings/noctoware.gpg"
+  install -Dm644 "$keys/noctoware-trusted" "$pkgdir/usr/share/pacman/keyrings/noctoware-trusted"
+  install -Dm644 "${keys}/noctoware-revoked" "$pkgdir/usr/share/pacman/keyrings/noctoware-revoked"
+}

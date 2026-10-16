@@ -1,0 +1,36 @@
+# Noctoware first-login deployment of HyDE dotfiles.
+# Installed into HyDE's Scripts/dots-groups/ so the relative includes resolve.
+# Deliberately omits ../dots/deps.toml (packages come from pacman via the
+# noctoware-hyde dependencies) and ../dots/archives.toml (network downloads +
+# sudo; fonts/cursors/GTK themes are provided by system packages instead).
+[global]
+    action      = "preserve"
+    owner       = "The HyDE Project (packaged by Noctoware)"
+    pre_command = "true"
+    version     = "0.1.0"
+    include = [
+        "../dots/hyde.toml",
+        "../dots/hyprland.toml",
+        "../dots/wallbash.toml",
+        "../dots/waybar.toml",
+        "../dots/rofi.toml",
+        "../dots/dunst.toml",
+        "../dots/wlogout.toml",
+        "../dots/electron.toml",
+        "../dots/baloofilerc.toml",
+        "../dots/dolphin.toml",
+        "../dots/kitty.toml",
+        "../dots/hyprlock.toml",
+        "../dots/hypridle.toml",
+        "../dots/hyprsunset.toml",
+        "../dots/fastfetch.toml",
+        "../dots/lsd.toml",
+        "../dots/zsh.toml",
+    ]
+
+[[global.package_managers]]
+    install   = "false"
+    name      = "pacman"
+    query     = "pacman -Q"
+    uninstall = "false"
+    update    = "false"

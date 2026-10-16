@@ -1,0 +1,8 @@
+post_install() {
+  # lsb-release is optional; if present, brand it without owning the file.
+  if [ -f /etc/lsb-release ]; then
+    sed -i -e 's/^DISTRIB_ID=.*/DISTRIB_ID="Noctoware"/' \
+           -e 's/^DISTRIB_DESCRIPTION=.*/DISTRIB_DESCRIPTION="Noctoware Linux"/' /etc/lsb-release
+  fi
+}
+post_upgrade() { post_install; }

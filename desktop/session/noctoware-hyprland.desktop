@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Noctoware Hyprland
+Comment=Hyprland with the HyDE desktop and Noctoware theme
+Exec=/usr/bin/noctoware-session
+TryExec=/usr/bin/noctoware-session
+Type=Application
+DesktopNames=Hyprland
+Keywords=tiling;wayland;compositor;hyde;noctoware

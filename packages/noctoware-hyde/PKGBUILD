@@ -1,0 +1,108 @@
+# Maintainer: Noctoware Project
+#
+# HyDE (https://github.com/HyDE-Project/HyDE, GPL-3.0) packaged for Noctoware:
+#   * the pinned upstream tree lives in /usr/share/noctoware/hyde/upstream
+#   * HyDE's Python environment is built here, from HyDE's own uv.lock, so the
+#     first login works offline (installed to /usr/lib/noctoware/hyde/python_env)
+#   * every runtime dependency is a real pacman dependency, so HyDE never has
+#     to run pacman/sudo/AUR helpers itself
+#   * noctoware-hyde-deploy installs the dotfiles per user on first login of the
+#     "Noctoware Hyprland" session, preserving user edits on every update.
+#
+# Rebuild (pkgrel bump) whenever Arch moves python to a new minor version:
+# the venv is tied to it.  scripts/check-dependencies.sh flags this.
+
+pkgname=noctoware-hyde
+_commit=fa2fd57afc7203b1b5653d3271f3a57ea3873f97
+_hydever=26.8.1
+pkgver=26.8.1.r20261003
+pkgrel=1
+pkgdesc="HyDE Hyprland desktop, packaged and themed for Noctoware Linux"
+arch=('x86_64')
+url="https://github.com/HyDE-Project/HyDE"
+license=('GPL-3.0-only')
+depends=(
+  # compositor + session
+  'hyprland' 'uwsm' 'hyprlock' 'hypridle' 'hyprsunset' 'hyprpicker' 'hyprpolkitagent'
+  'hyprquery' 'xdg-desktop-portal-hyprland' 'xdg-desktop-portal-gtk' 'xdg-user-dirs'
+  # shell UI
+  'waybar' 'rofi' 'dunst' 'wlogout' 'awww' 'libnotify'
+  # screenshots / clipboard
+  'grim' 'slurp' 'satty' 'cliphist' 'wl-clip-persist'
+  # audio / network / bluetooth / power
+  'pipewire' 'pipewire-alsa' 'pipewire-audio' 'pipewire-jack' 'pipewire-pulse'
+  'gst-plugin-pipewire' 'wireplumber' 'pavucontrol' 'pamixer' 'playerctl'
+  'networkmanager' 'network-manager-applet' 'bluez' 'bluez-utils' 'blueman'
+  'brightnessctl' 'udiskie'
+  # theming
+  'nwg-look' 'nwg-displays' 'qt5ct' 'qt6ct' 'kvantum' 'kvantum-qt5' 'qt5-wayland' 'qt6-wayland'
+  'qt5-quickcontrols' 'qt5-quickcontrols2' 'qt5-graphicaleffects' 'qt5-imageformats'
+  'papirus-icon-theme' 'bibata-cursor-theme' 'noto-fonts' 'noto-fonts-emoji' 'noto-fonts-cjk'
+  'cantarell-fonts' 'ttf-jetbrains-mono-nerd' 'ttf-cascadia-code-nerd' 'ttf-mononoki-nerd'
+  # apps HyDE binds by default
+  'kitty' 'dolphin' 'ark' 'ffmpegthumbs' 'kde-cli-tools' 'firefox' 'fastfetch'
+  # HyDE script runtime
+  'python' 'lua' 'luarocks' 'lua-dkjson' 'lua-filesystem' 'lua-argparse' 'lua-socket'
+  'lua-sec' 'lua-lgi' 'libgirepository' 'imagemagick' 'jq' 'parallel' 'pacman-contrib'
+  'fzf' 'lsd' 'unzip' 'zsh' 'starship' 'sddm' 'noctoware-branding'
+)
+optdepends=('electron: apply HyDE Electron Wayland flags'
+            'code: HyDE VS Code settings are deployed if installed')
+makedepends=('git' 'uv')
+options=('!strip' '!debug')
+source=("HyDE::git+https://github.com/HyDE-Project/HyDE.git#commit=${_commit}")
+sha256sums=('SKIP')
+
+_pyproj=HyDE/Configs/.local/lib/hyde
+
+prepare() {
+  # xdg-prefs (a GUI default-apps editor nothing in HyDE invokes) drags in the
+  # entire PySide6/QtWebEngine stack (~650 MB).  Drop it and re-lock.
+  sed -i -e '/^[[:space:]]*"xdg-prefs",$/d' -e '/^xdg-prefs = /d' "$_pyproj/pyproject.toml"
+  ! grep -q 'xdg-prefs' "$_pyproj/pyproject.toml"
+  UV_CACHE_DIR="$srcdir/uv-cache" uv lock --project "$_pyproj"
+}
+
+build() {
+  export UV_CACHE_DIR="$srcdir/uv-cache" UV_PYTHON_DOWNLOADS=never
+  rm -rf "$srcdir/python_env"
+  uv venv --relocatable --python /usr/bin/python3 "$srcdir/python_env"
+  # Exactly the command HyDE's python_env.py runs, against the locked set.
+  VIRTUAL_ENV="$srcdir/python_env" UV_PROJECT_ENVIRONMENT="$srcdir/python_env" \
+    uv sync --frozen --active --link-mode copy --project "$_pyproj"
+}
+
+check() {
+  export UV_CACHE_DIR="$srcdir/uv-cache"
+  # HyDE re-runs `uv sync` at runtime; prove that is a no-op without network.
+  VIRTUAL_ENV="$srcdir/python_env" UV_PROJECT_ENVIRONMENT="$srcdir/python_env" UV_OFFLINE=1 \
+    uv sync --frozen --active --link-mode copy --project "$_pyproj"
+  "$srcdir/python_env/bin/deez" --help >/dev/null
+  "$srcdir/python_env/bin/python" -c 'import loguru, pulsectl, requests, websockets, pyprland'
+}
+
+package() {
+  local root share
+  root="$(realpath "$startdir/../..")"
+  share="$pkgdir/usr/share/noctoware/hyde"
+
+  install -d "$share/upstream" "$share/arcs" "$share/themes" "$pkgdir/usr/lib/noctoware/hyde"
+  cp -a HyDE/Configs HyDE/Scripts "$share/upstream/"
+  rm -rf "$share/upstream/Configs/.local/lib/hyde/.venv"
+  install -Dm644 "$root/desktop/hyde/dots-groups/noctoware.toml" "$share/upstream/Scripts/dots-groups/noctoware.toml"
+  install -m644 HyDE/Source/arcs/Gtk_Wallbash.tar.gz HyDE/Source/arcs/Icon_Wallbash.tar.gz "$share/arcs/"
+  cp -a "$root/desktop/hyde/themes/Noctoware" "$share/themes/"
+  install -Dm644 "$root/branding/fastfetch/config.jsonc" "$share/overrides/fastfetch/config.jsonc"
+  printf '%s-%s\n' "$pkgver" "$pkgrel" >"$share/VERSION"
+
+  cp -a "$srcdir/python_env" "$pkgdir/usr/lib/noctoware/hyde/python_env"
+
+  install -Dm755 "$root/desktop/hyde/bin/noctoware-hyde-deploy" "$pkgdir/usr/bin/noctoware-hyde-deploy"
+  install -Dm755 "$root/desktop/session/noctoware-session" "$pkgdir/usr/bin/noctoware-session"
+  install -Dm755 "$root/desktop/session/kdeglobals-swap" "$pkgdir/usr/lib/noctoware/kdeglobals-swap"
+  install -Dm644 "$root/desktop/session/noctoware-hyprland.desktop" \
+    "$pkgdir/usr/share/wayland-sessions/noctoware-hyprland.desktop"
+
+  install -Dm644 HyDE/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 HyDE/CREDITS.md "$pkgdir/usr/share/licenses/$pkgname/CREDITS.md"
+}

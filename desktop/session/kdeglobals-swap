@@ -1,0 +1,21 @@
+#!/bin/sh
+# kdeglobals-swap <hyprland|plasma>
+# HyDE (for Dolphin/Qt theming under Hyprland) and Plasma both write
+# ~/.config/kdeglobals.  Keep one copy per desktop and swap at session start so
+# neither desktop's theme leaks into the other.
+set -eu
+target="$1"
+case "$target" in hyprland|plasma) ;; *) echo "usage: $0 hyprland|plasma" >&2; exit 2 ;; esac
+cfg="${XDG_CONFIG_HOME:-$HOME/.config}/kdeglobals"
+dir="${XDG_STATE_HOME:-$HOME/.local/state}/noctoware/kdeglobals"
+mkdir -p "$dir"
+active="$(cat "$dir/active" 2>/dev/null || echo hyprland)"
+[ "$active" = "$target" ] && exit 0
+[ -f "$cfg" ] && cp -p "$cfg" "$dir/$active"
+if [ -f "$dir/$target" ]; then
+    cp -p "$dir/$target" "$cfg"
+else
+    # First visit to this desktop: start from system defaults (/etc/xdg).
+    rm -f "$cfg"
+fi
+echo "$target" >"$dir/active"

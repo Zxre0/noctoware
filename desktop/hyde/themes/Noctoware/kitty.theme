@@ -1,0 +1,44 @@
+$HOME/.config/kitty/theme.conf|killall -SIGUSR1 kitty
+
+## name:     Noctoware
+## author:   Noctoware Project
+## license:  MIT
+
+foreground              #E9DDFF
+background              #0B0712
+selection_foreground    #0B0712
+selection_background    #9B6BFF
+cursor                  #C4A7FF
+cursor_text_color       #0B0712
+url_color               #C4A7FF
+active_border_color     #9B6BFF
+inactive_border_color   #3B2366
+bell_border_color       #F472B6
+wayland_titlebar_color system
+active_tab_foreground   #0B0712
+active_tab_background   #9B6BFF
+inactive_tab_foreground #C9B8EE
+inactive_tab_background #160E24
+tab_bar_background      #07040C
+mark1_foreground #0B0712
+mark1_background #A78BFA
+mark2_foreground #0B0712
+mark2_background #E879F9
+mark3_foreground #0B0712
+mark3_background #67E8F9
+color0  #2A1D40
+color8  #4C3A6E
+color1  #F47AA0
+color9  #FF9CBB
+color2  #8BE3B0
+color10 #A6F0C6
+color3  #F5D58A
+color11 #FBE3A8
+color4  #8A9BFF
+color12 #AAB6FF
+color5  #B48CFF
+color13 #CDB4FF
+color6  #7CDDEB
+color14 #A0ECF5
+color7  #D9CCF2
+color15 #F3EDFF

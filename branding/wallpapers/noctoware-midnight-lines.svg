@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Noctoware wallpaper. Original artwork, CC-BY-SA-4.0, (c) Noctoware Project. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3840 2160" width="3840" height="2160">
+  <rect width="3840" height="2160" fill="#07040c"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M -200 300 C 1000 100 2600 900 4100 500" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 370 C 1000 210 2600 955 4100 562" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 440 C 1000 320 2600 1010 4100 624" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 510 C 1000 430 2600 1065 4100 686" stroke="#8b5cf6" stroke-width="4" opacity="0.85"/>
+    <path d="M -200 580 C 1000 540 2600 1120 4100 748" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 650 C 1000 450 2600 1175 4100 810" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 720 C 1000 560 2600 1230 4100 872" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 790 C 1000 670 2600 1285 4100 934" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 860 C 1000 780 2600 1340 4100 996" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 930 C 1000 890 2600 1395 4100 1058" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1000 C 1000 800 2600 1450 4100 1120" stroke="#8b5cf6" stroke-width="4" opacity="0.85"/>
+    <path d="M -200 1070 C 1000 910 2600 1505 4100 1182" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1140 C 1000 1020 2600 1560 4100 1244" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1210 C 1000 1130 2600 1615 4100 1306" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1280 C 1000 1240 2600 1670 4100 1368" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1350 C 1000 1150 2600 1725 4100 1430" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1420 C 1000 1260 2600 1780 4100 1492" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1490 C 1000 1370 2600 1835 4100 1554" stroke="#8b5cf6" stroke-width="4" opacity="0.85"/>
+    <path d="M -200 1560 C 1000 1480 2600 1890 4100 1616" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1630 C 1000 1590 2600 1945 4100 1678" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1700 C 1000 1500 2600 2000 4100 1740" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1770 C 1000 1610 2600 2055 4100 1802" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1840 C 1000 1720 2600 2110 4100 1864" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1910 C 1000 1830 2600 2165 4100 1926" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+    <path d="M -200 1980 C 1000 1940 2600 2220 4100 1988" stroke="#8b5cf6" stroke-width="4" opacity="0.85"/>
+    <path d="M -200 2050 C 1000 1850 2600 2275 4100 2050" stroke="#3b2366" stroke-width="2" opacity="0.45"/>
+  </g>
+  <g transform="translate(3380 1760) scale(0.55)" opacity="0.9"><path d="M 128 392 L 128 150 Q 128 120 158 120 L 186 120 L 326 318 L 326 120 L 384 120 L 384 362 Q 384 392 354 392 L 326 392 L 186 194 L 186 392 Z" fill="#9b6bff"/></g>
+</svg>

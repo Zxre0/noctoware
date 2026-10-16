@@ -1,0 +1,33 @@
+# Maintainer: Noctoware Project
+# Upstream: HyDE Project. Required by HyDE (Scripts/pkg_core.lst) and not in
+# the official Arch repositories, so [noctoware] builds it from source.
+pkgname=hyprquery
+pkgver=0.6.8
+pkgrel=1
+_commit=002af783eeb8c487a4bf90d75e5a804340557967
+pkgdesc="CLI utility to query values from hyprlang configuration files"
+arch=('x86_64')
+url="https://github.com/HyDE-Project/hyprquery"
+license=('LGPL-3.0-only')
+depends=('hyprlang' 'hyprutils' 'libxkbcommon' 'gcc-libs' 'glibc')
+makedepends=('git' 'cmake' 'ninja' 'cli11' 'nlohmann-json' 'pkgconf')
+source=("git+https://github.com/HyDE-Project/hyprquery.git#commit=${_commit}")
+sha256sums=('SKIP')
+
+build() {
+  cmake -S hyprquery -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DHYPRQUERY_DISTRO_BUILD=ON
+  cmake --build build
+}
+
+check() {
+  ./build/bin/hyq --help >/dev/null
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  [[ -x "$pkgdir/usr/bin/hyq" ]] || install -Dm755 build/bin/hyq "$pkgdir/usr/bin/hyq"
+  install -Dm644 hyprquery/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

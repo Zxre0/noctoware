@@ -1,0 +1,13 @@
+[SddmGreeterTheme]
+Name=Noctoware
+Description=Noctoware Linux login theme
+Author=Noctoware Project
+License=CC-BY-SA-4.0 AND MIT
+Type=sddm-theme
+Version=0.1
+Website=https://github.com/noctoware/noctoware
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=noctoware
+Theme-API=2.0
+QtVersion=6

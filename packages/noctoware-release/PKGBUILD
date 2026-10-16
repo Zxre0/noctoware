@@ -1,0 +1,42 @@
+# Maintainer: Noctoware Project
+# Distribution identity: /etc/os-release, /etc/lsb-release, /etc/issue branding.
+pkgname=noctoware-release
+pkgver=0.1
+pkgrel=1
+pkgdesc="Noctoware Linux release and identification files"
+arch=('any')
+url="https://github.com/noctoware/noctoware"
+license=('MIT')
+backup=('etc/issue')
+install=noctoware-release.install
+
+package() {
+  local root; root="$(realpath "$startdir/../..")"
+  # shellcheck source=/dev/null
+  source "$root/noctoware.conf"
+
+  # /etc/os-release takes precedence over /usr/lib/os-release (owned by
+  # Arch's `filesystem`), so we never have to fork `filesystem`.
+  install -Dm644 /dev/stdin "$pkgdir/etc/os-release" <<OSR
+NAME="${NOCTO_NAME}"
+PRETTY_NAME="${NOCTO_PRETTY_NAME}"
+ID=${NOCTO_ID}
+ID_LIKE=arch
+BUILD_ID=rolling
+VERSION="${NOCTO_VERSION_LABEL}"
+VERSION_ID=${NOCTO_VERSION}
+VERSION_CODENAME=${NOCTO_VERSION_CODENAME}
+ANSI_COLOR="38;2;155;107;255"
+LOGO=noctoware
+HOME_URL="https://github.com/${NOCTO_GH_OWNER}/${NOCTO_GH_REPO}"
+DOCUMENTATION_URL="https://github.com/${NOCTO_GH_OWNER}/${NOCTO_GH_REPO}/tree/main/docs"
+SUPPORT_URL="https://github.com/${NOCTO_GH_OWNER}/${NOCTO_GH_REPO}/discussions"
+BUG_REPORT_URL="https://github.com/${NOCTO_GH_OWNER}/${NOCTO_GH_REPO}/issues"
+OSR
+  install -Dm644 /dev/stdin "$pkgdir/etc/noctoware-release" <<<"${NOCTO_PRETTY_NAME} ${NOCTO_VERSION_LABEL} (rolling)"
+  install -Dm644 /dev/stdin "$pkgdir/etc/issue" <<'ISSUE'
+\e[38;2;155;107;255mNoctoware Linux\e[0m \r (\l)
+
+ISSUE
+  install -Dm644 "$root/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

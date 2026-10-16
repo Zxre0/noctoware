@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Noctoware Linux logo. Original artwork, CC-BY-SA-4.0, (c) Noctoware Project. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="nGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d8c4ff"/>
+      <stop offset="0.45" stop-color="#9b6bff"/>
+      <stop offset="1" stop-color="#5b21b6"/>
+    </linearGradient>
+    <linearGradient id="moonGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#4c1d95" stop-opacity="0.35"/>
+    </linearGradient>
+    <mask id="crescent">
+      <rect width="512" height="512" fill="#fff"/>
+      <circle cx="292" cy="226" r="206" fill="#000"/>
+    </mask>
+  </defs>
+  <!-- crescent moon ring -->
+  <circle cx="256" cy="256" r="232" fill="url(#moonGrad)" mask="url(#crescent)"/>
+  <!-- stylized N: slanted stems joined by a sharp diagonal -->
+  <path fill="url(#nGrad)" d="
+    M 128 392 L 128 150 Q 128 120 158 120 L 186 120
+    L 326 318 L 326 120 L 384 120 L 384 362 Q 384 392 354 392 L 326 392
+    L 186 194 L 186 392 Z"/>
+  <!-- small star -->
+  <path fill="#e9ddff" d="M 404 92 l 7 -19 l 7 19 l 19 7 l -19 7 l -7 19 l -7 -19 l -19 -7 Z"/>
+</svg>

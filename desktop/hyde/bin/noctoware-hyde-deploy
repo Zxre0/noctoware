@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# noctoware-hyde-deploy — install or refresh HyDE for the current user.
+#
+# Runs automatically from the "Noctoware Hyprland" session before Hyprland
+# starts, and again whenever the noctoware-hyde package version changes.
+# Uses HyDE's own deployment tool (deez) offline with HyDE's own semantics:
+#   * "preserve" files (hyprland user config, waybar user style, zsh user
+#     files, kitty.conf, …) are only created when missing — user edits survive
+#     every update;
+#   * "sync" files (HyDE's internal scripts in ~/.local/lib/hyde, ~/.local/share/hyde)
+#     are refreshed to the packaged version.
+# Never needs network access or root.
+#
+# Usage: noctoware-hyde-deploy [--force] [--quiet]
+set -uo pipefail
+
+# Paths are overridable so tests can run against an extracted package.
+SHARE="${NOCTO_HYDE_SHARE:-/usr/share/noctoware/hyde}"
+SRC="$SHARE/upstream"
+VENV_SYS="${NOCTO_HYDE_VENV:-/usr/lib/noctoware/hyde/python_env}"
+STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+NSTATE="$STATE_HOME/noctoware"
+MARK="$NSTATE/hyde-deployed"
+LOG="$NSTATE/hyde-deploy.log"
+
+force=0 quiet=0
+for a in "$@"; do
+    case "$a" in
+        --force) force=1 ;;
+        --quiet) quiet=1 ;;
+        -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+        *) echo "unknown option: $a" >&2; exit 2 ;;
+    esac
+done
+
+[[ $EUID -ne 0 ]] || { echo "noctoware-hyde-deploy: run as your normal user, not root" >&2; exit 2; }
+[[ -d "$SRC" ]] || { echo "noctoware-hyde-deploy: $SRC missing (is noctoware-hyde installed?)" >&2; exit 3; }
+
+want="$(cat "$SHARE/VERSION")"
+have="$(cat "$MARK" 2>/dev/null || true)"
+if [[ $force -eq 0 && "$have" == "$want" ]]; then
+    exit 0
+fi
+first_run=0
+[[ -n "$have" ]] || first_run=1
+
+mkdir -p "$NSTATE" "$STATE_HOME/hyde"
+exec 3>&1
+if [[ $quiet -eq 1 ]]; then exec >>"$LOG" 2>&1; else exec > >(tee -a "$LOG") 2>&1; fi
+echo "=== $(date -Is) deploying HyDE $want (previous: ${have:-none})"
+
+rc=0
+step() { echo "--> $*"; }
+
+# Never let a deploy reach into a running compositor or another user's session.
+unset HYPRLAND_INSTANCE_SIGNATURE WAYLAND_DISPLAY DISPLAY
+
+# 1. Python environment HyDE expects at ~/.local/state/hyde/python_env.
+#    Copied (reflink on btrfs, so effectively free) instead of symlinked so
+#    HyDE's own `uv sync`/rebuild logic keeps working against a writable venv.
+venv="$STATE_HOME/hyde/python_env"
+if [[ $force -eq 1 || "$have" != "$want" || ! -x "$venv/bin/python" ]]; then
+    step "python environment"
+    rm -rf "$venv.new"
+    if cp -a --reflink=auto "$VENV_SYS" "$venv.new"; then
+        rm -rf "$venv" && mv "$venv.new" "$venv"
+    else
+        echo "warning: could not copy python environment"; rc=1
+    fi
+fi
+
+# 2. Noctoware defaults that HyDE would otherwise provide.  Seeded only when
+#    absent, so they behave exactly like HyDE's "preserve" files.
+seed() { [[ -e "$2" || -L "$2" ]] || install -Dm644 "$1" "$2"; }
+seed "$SHARE/overrides/fastfetch/config.jsonc" "$CONFIG_HOME/fastfetch/config.jsonc"
+
+# 3. Dotfiles via deez (HyDE's deployer), without its package installer.
+step "dotfiles"
+if ! "$venv/bin/deez" --source "$SRC" --config "$SRC/Scripts/dots-groups/noctoware.toml" \
+        dots --skip-git --no-deps-checks --no-deps-install --deploy all </dev/null; then
+    echo "warning: deez reported failures"; rc=1
+fi
+
+# 3b. Wallbash GTK/icon themes.  Upstream extracts these per user because
+#     wallbash rewrites their colours in place on every theme switch.
+step "wallbash gtk/icons"
+for arc in Gtk_Wallbash:themes Icon_Wallbash:icons; do
+    name="${arc%%:*}" kind="${arc##*:}"
+    dest="$HOME/.local/share/$kind"
+    mkdir -p "$dest"
+    tar -xzf "$SHARE/arcs/$name.tar.gz" -C "$dest" --skip-old-files || { echo "warning: $name"; rc=1; }
+done
+
+# HyDE's helpers (hyde-shell, hydectl, lib scripts) for the remaining steps.
+export LIB_DIR="$HOME/.local/lib" SHARE_DIR="$HOME/.local/share"
+export PATH="$HOME/.local/lib/hyde:$HOME/.local/bin:$PATH"
+
+# 4. HyDE migrations (same contract as upstream install.sh: each runs once and
+#    must be safe on a fresh home).
+step "migrations"
+mig_state="$STATE_HOME/hyde/migration/applied"
+mkdir -p "${mig_state%/*}"; touch "$mig_state"
+while read -r m; do
+    [[ -n "$m" ]] || continue
+    grep -qxF "$m" "$mig_state" && continue
+    if (set +u; sh "$SRC/Scripts/migrations/$m" </dev/null); then
+        printf '%s\n' "$m" >>"$mig_state"
+    else
+        echo "warning: migration $m failed"
+    fi
+done < <(find "$SRC/Scripts/migrations" -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | sort -V)
+
+# 5. The Noctoware HyDE theme (always refreshed; it is packaged, not user data).
+step "Noctoware theme"
+tdir="$CONFIG_HOME/hyde/themes/Noctoware"
+mkdir -p "$tdir"
+cp -rTL --reflink=auto --remove-destination "$SHARE/themes/Noctoware" "$tdir"
+if [[ $first_run -eq 1 ]]; then
+    staterc="$STATE_HOME/hyde/staterc"
+    touch "$staterc"
+    if grep -q '^HYDE_THEME=' "$staterc"; then
+        sed -i 's/^HYDE_THEME=.*/HYDE_THEME="Noctoware"/' "$staterc"
+    else
+        echo 'HYDE_THEME="Noctoware"' >>"$staterc"
+    fi
+fi
+
+# 6. Caches (wallpaper thumbnails, wallbash colours, waybar layout).  Same
+#    commands upstream install.sh runs after a restore.
+step "theme caches"
+(
+    set +u  # HyDE's scripts are not nounset-clean
+    export HYDE_SHELL_INIT=1
+    # Same default as HyDE's uwsm env-hyprland.d/00-hyde.sh; without it
+    # theme.switch.sh skips loading the theme's GTK/icon/cursor variables.
+    export HYPRLAND_CONFIG="${XDG_DATA_HOME:-$HOME/.local/share}/hypr/hyde.lua"
+    # shellcheck disable=SC1091
+    source "$HOME/.local/lib/hyde/globalcontrol.sh" &&
+    "$HOME/.local/lib/hyde/wallpaper/cache.sh" commence -t "" &&
+    "$HOME/.local/lib/hyde/theme.switch.sh" -q &&
+    "$HOME/.local/lib/hyde/waybar.py" --update
+) </dev/null || { echo "warning: cache generation incomplete (HyDE regenerates on next theme switch)"; rc=1; }
+
+xdg-user-dirs-update 2>/dev/null || true
+
+echo "$want" >"$MARK"
+echo "=== done (rc=$rc)"
+exit 0

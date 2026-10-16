@@ -1,0 +1,47 @@
+$HOME/.config/hypr/themes/theme.conf|> $HOME/.config/hypr/themes/colors.conf
+# Noctoware — purple on black. Original theme, MIT, (c) Noctoware Project.
+
+$GTK_THEME = Wallbash-Gtk
+$ICON_THEME = Papirus-Dark
+$COLOR_SCHEME = prefer-dark
+$CURSOR_THEME = Bibata-Modern-Ice
+$CURSOR_SIZE = 24
+
+exec = gsettings set org.gnome.desktop.interface icon-theme $ICON_THEME
+exec = gsettings set org.gnome.desktop.interface gtk-theme $GTK_THEME
+exec = gsettings set org.gnome.desktop.interface color-scheme $COLOR_SCHEME
+exec = gsettings set org.gnome.desktop.interface cursor-theme $CURSOR_THEME
+exec = hyprctl setcursor $CURSOR_THEME $CURSOR_SIZE
+
+general {
+    gaps_in = 4
+    gaps_out = 10
+    border_size = 2
+    col.active_border = rgba(9b6bffff) rgba(5b21b6ff) 45deg
+    col.inactive_border = rgba(2a1d40cc) rgba(120c1ccc) 45deg
+    layout = dwindle
+    resize_on_border = true
+}
+
+group {
+    col.border_active = rgba(9b6bffff) rgba(5b21b6ff) 45deg
+    col.border_inactive = rgba(2a1d40cc) rgba(120c1ccc) 45deg
+    col.border_locked_active = rgba(c4a7ffff) rgba(7c3aedff) 45deg
+    col.border_locked_inactive = rgba(2a1d40cc) rgba(120c1ccc) 45deg
+}
+
+decoration {
+    rounding = 12
+    shadow:enabled = false
+
+    blur {
+        enabled = yes
+        size = 7
+        passes = 3
+        new_optimizations = on
+        ignore_opacity = on
+        xray = false
+    }
+}
+
+layerrule = blur,waybar

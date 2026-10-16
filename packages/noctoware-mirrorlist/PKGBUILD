@@ -1,0 +1,27 @@
+# Maintainer: Noctoware Project
+pkgname=noctoware-mirrorlist
+pkgver=1
+pkgrel=1
+pkgdesc="Noctoware Linux [noctoware] repository mirror list"
+arch=('any')
+url="https://github.com/noctoware/noctoware"
+license=('MIT')
+backup=('etc/pacman.d/noctoware-mirrorlist')
+
+package() {
+  local root; root="$(realpath "$startdir/../..")"
+  # shellcheck source=/dev/null
+  source "$root/noctoware.conf"
+  install -Dm644 /dev/stdin "$pkgdir/etc/pacman.d/noctoware-mirrorlist" <<ML
+##
+## Noctoware Linux repository mirrorlist
+## The first working Server is used.  Packages and databases are signed;
+## pacman verifies them against noctoware-keyring regardless of mirror.
+##
+
+# Primary (GitHub Releases).  To migrate hosting, change this line or add a
+# Server above it; the repository layout is a flat directory of
+# noctoware.db, noctoware.files, *.pkg.tar.zst and *.sig.
+Server = ${NOCTO_REPO_URL}
+ML
+}

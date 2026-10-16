@@ -1,0 +1,69 @@
+# Maintainer: Noctoware Project
+# Logos, wallpapers and Fastfetch defaults.  Rendered from the SVG sources in
+# branding/ at build time so the repository only stores vector originals.
+pkgname=noctoware-branding
+pkgver=0.1
+pkgrel=1
+pkgdesc="Noctoware Linux logos, wallpapers and Fastfetch defaults"
+arch=('any')
+url="https://github.com/noctoware/noctoware"
+license=('CC-BY-SA-4.0' 'MIT')
+depends=('fastfetch' 'hicolor-icon-theme')
+makedepends=('librsvg')
+backup=('etc/xdg/fastfetch/config.jsonc')
+
+_walls=(nocturne eclipse midnight-lines)
+
+build() {
+  local b; b="$(realpath "$startdir/../../branding")"
+  mkdir -p "$srcdir/out"
+  for s in 16 22 24 32 48 64 128 256 512; do
+    rsvg-convert -w $s -h $s "$b/logo/noctoware-logo.svg" -o "$srcdir/out/logo-$s.png"
+  done
+  for w in "${_walls[@]}"; do
+    rsvg-convert -w 3840 -h 2160 "$b/wallpapers/noctoware-$w.svg" -o "$srcdir/out/$w-3840x2160.png"
+    rsvg-convert -w 1920 -h 1080 "$b/wallpapers/noctoware-$w.svg" -o "$srcdir/out/$w-1920x1080.png"
+    rsvg-convert -w 400 -h 225 "$b/wallpapers/noctoware-$w.svg" -o "$srcdir/out/$w-preview.png"
+  done
+}
+
+package() {
+  local b root; root="$(realpath "$startdir/../..")"; b="$root/branding"
+  # Icons: "noctoware" is referenced by LOGO= in os-release.
+  install -Dm644 "$b/logo/noctoware-logo.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/noctoware.svg"
+  install -Dm644 "$b/logo/noctoware-logo.svg" "$pkgdir/usr/share/pixmaps/noctoware.svg"
+  for s in 16 22 24 32 48 64 128 256 512; do
+    install -Dm644 "$srcdir/out/logo-$s.png" "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps/noctoware.png"
+  done
+  ln -s noctoware.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/distributor-logo-noctoware.svg"
+  install -Dm644 "$srcdir/out/logo-256.png" "$pkgdir/usr/share/noctoware/branding/logo-256.png"
+  install -Dm644 "$b/logo/noctoware-logo.svg" "$pkgdir/usr/share/noctoware/branding/logo.svg"
+
+  # Wallpapers: flat files for Hyprland/HyDE/SDDM, plus KDE wallpaper packages.
+  local w name
+  for w in "${_walls[@]}"; do
+    install -Dm644 "$srcdir/out/$w-3840x2160.png" "$pkgdir/usr/share/backgrounds/noctoware/noctoware-$w.png"
+    name="Noctoware-${w^}"
+    install -Dm644 "$srcdir/out/$w-3840x2160.png" "$pkgdir/usr/share/wallpapers/$name/contents/images/3840x2160.png"
+    install -Dm644 "$srcdir/out/$w-1920x1080.png" "$pkgdir/usr/share/wallpapers/$name/contents/images/1920x1080.png"
+    install -Dm644 "$srcdir/out/$w-preview.png" "$pkgdir/usr/share/wallpapers/$name/contents/screenshot.png"
+    install -Dm644 /dev/stdin "$pkgdir/usr/share/wallpapers/$name/metadata.json" <<META
+{
+  "KPlugin": {
+    "Authors": [ { "Name": "Noctoware Project" } ],
+    "Id": "$name",
+    "License": "CC-BY-SA-4.0",
+    "Name": "Noctoware ${w^}"
+  }
+}
+META
+  done
+  ln -s noctoware-nocturne.png "$pkgdir/usr/share/backgrounds/noctoware/default.png"
+
+  # Fastfetch: XDG system config dir is consulted when the user has none.
+  install -Dm644 "$b/fastfetch/noctoware-ascii.txt" "$pkgdir/usr/share/noctoware/fastfetch/noctoware-ascii.txt"
+  install -Dm644 "$b/fastfetch/config.jsonc" "$pkgdir/usr/share/noctoware/fastfetch/config.jsonc"
+  install -Dm644 "$b/fastfetch/config.jsonc" "$pkgdir/etc/xdg/fastfetch/config.jsonc"
+
+  install -Dm644 "$b/LICENSE.artwork" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.artwork"
+}
