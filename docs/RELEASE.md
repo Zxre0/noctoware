@@ -41,14 +41,15 @@ docs/KNOWN_ISSUES.md).
 scripts/build-packages.sh              # with NOCTO_SIGNING_KEY set to the release key
 sudo scripts/build-iso.sh
 NOCTO_SIGNING_KEY=$FPR scripts/sign-iso.sh
-tests/vm/run-all.sh                    # full QEMU release suite (~1.5 h)
-gh release create v0.1-alpha out/noctoware-*.iso{,.sig,.sha256} --prerelease \
-   --notes-file docs/PROGRESS.md
+tests/vm/run-all.sh                    # full QEMU release suite (~25 min)
+scripts/split-iso.sh                   # parts < 2 GiB + checksums + REASSEMBLE.txt
+gh release create v0.1-alpha out/noctoware-*.iso.part-* out/noctoware-*.iso.{sig,sha256,parts.sha256} \
+   out/REASSEMBLE.txt --prerelease --notes-file docs/PROGRESS.md
 ```
-GitHub limits release assets to 2 GiB; the ISO (~4.7 GiB with the offline
-cache) must be hosted elsewhere or built with `--no-offline` (~3.8 GiB, still
-too large) — plan on object storage (S3/R2/B2) or a torrent for ISO
-distribution, and link it from the release notes.
+GitHub limits release assets to 2 GiB and the ISO is ~4.7 GiB (with the
+offline KDE + driver cache), so it is published as numbered parts that users
+join with `cat` (REASSEMBLE.txt). For a single-file download, host the ISO on
+object storage (S3/R2/B2) or a torrent instead and link it from the notes.
 
 ## 5. Before calling it "hardware-ready"
 Run the live ISO and an install on real NVIDIA (RTX 20–50), AMD and Intel

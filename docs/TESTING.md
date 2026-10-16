@@ -49,9 +49,11 @@ greeter) because QEMU cannot read GL scanouts in egl-headless mode.
 repository is not published yet); Arch and CachyOS come from their mirrors.
 
 ### Results — final release run 2026-10-16 (`tests/vm/run-all.sh`)
-ISO `noctoware-0.1-alpha-2026.10.16-x86_64.iso` (sha256 `3db057c577ed32a7…`),
-KVM, virtio-gpu, two lanes in parallel. **169 checks, 0 failures.**
-Full summary: `tests/artifacts/release-20261016-0246/SUMMARY.md`.
+ISO `noctoware-0.1-alpha-2026.10.16-x86_64.iso` (sha256 `f5c55c9ed81fa7c9…`,
+rebuilt with noctoware-system 0.1-8), KVM, virtio-gpu, two lanes in parallel,
+21 minutes. **178 checks, 0 failures** (now including Secure Boot and the Plasma
+branding check). Full summary: `tests/artifacts/release-20261016-0708/SUMMARY.md`
+(copy in docs/RELEASE-TEST-2026-10-16.md).
 
 | scenario | result |
 |---|---|
@@ -60,12 +62,12 @@ Full summary: `tests/artifacts/release-20261016-0246/SUMMARY.md`.
 | install Hyprland, Btrfs, UEFI → installed system | 1/1 → 23/23 |
 | install Hyprland, Btrfs, **BIOS** (GRUB) → installed system | 1/1 → 23/23 |
 | install Hyprland, **ext4**, UEFI → installed system | 1/1 → 22/22 |
-| install **Hyprland + KDE Plasma**, **no network**, mocked **hybrid Intel + NVIDIA RTX** → installed system (both sessions, audio/portals in Plasma, switching, Steam in each, NVIDIA stack) | 1/1 → 30/30 |
+| install **Hyprland + KDE Plasma**, **no network**, mocked **hybrid Intel + NVIDIA RTX** → installed system (both sessions, audio/portals in Plasma, switching, Steam in each, NVIDIA stack) | 1/1 → 31/31 |
 | install KDE later with `sudo pacman -S noctoware-plasma` | 6/6 |
 | Claude Code (official installer, consent) + Revo Shell (macOS) + shell switching | 10/10 |
 | snapshot rollback + LTS recovery kernel | 9/9 |
 | multi-monitor: two displays on two GPUs, waybar + wallpaper on each | 3/3 |
-| Secure Boot with own keys (`noctoware-secureboot`, OVMF secboot, enforced) | 7/7 (separate run) |
+| Secure Boot with own keys (`noctoware-secureboot`, OVMF secboot, enforced) | 7/7 |
 
 What `test_installed.py` verifies: boots without the ISO; CachyOS kernel;
 `os-release`; no live-session leftovers (liveuser, NOPASSWD sudo, autologin,

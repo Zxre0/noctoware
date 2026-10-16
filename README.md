@@ -45,6 +45,7 @@ See [docs/BUILD.md](docs/BUILD.md), [docs/TESTING.md](docs/TESTING.md),
 * [Build](docs/BUILD.md) · [Testing](docs/TESTING.md) · [Package repository](docs/REPOSITORY.md)
 * [Snapshots & recovery](docs/RECOVERY.md) · [GPU drivers](docs/GPU.md) · [Secure Boot](docs/SECURE_BOOT.md)
 * [AI tools](docs/AI_TOOLS.md) · [Revo Shell](docs/REVO.md) · [KDE Plasma](docs/PLASMA.md)
+* [Publishing (maintainers)](docs/RELEASE.md) · [Handoff / open items](docs/HANDOFF.md) · [Hardware testing](docs/HARDWARE_TESTING.md)
 * [Third-party licenses](THIRD_PARTY_LICENSES.md)
 
 ## License

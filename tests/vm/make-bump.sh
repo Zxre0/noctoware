@@ -13,7 +13,9 @@ new="${2:-$((rel + 1))}"
 sed -i "s/^pkgrel=.*/pkgrel=$new/" "$tmp/PKGBUILD"
 key="$(signing_key)"
 (cd "$tmp" && PKGDEST="$dst" BUILDDIR="$bdir" makepkg -f --nodeps --noconfirm >/dev/null 2>&1) || die "bump build failed" "$E_BUILD"
-f="$(cd "$tmp" && PKGDEST="$dst" makepkg --packagelist)"
+# debug packages (Arch's default makepkg.conf) are not shipped, as in build-packages.sh
+f="$(cd "$tmp" && PKGDEST="$dst" makepkg --packagelist | grep -v -- '-debug-')"
+rm -f "$dst"/noctoware-welcome-debug-*.pkg.tar.*
 GNUPGHOME="$NOCTO_GNUPGHOME" gpg --batch --yes --detach-sign -u "$key" "$f"
 # GitHub-style flat repo: real files, no symlinks
 GNUPGHOME="$NOCTO_GNUPGHOME" repo-add -q --sign --key "$key" --remove "$dst/noctoware.db.tar.gz" "$f"

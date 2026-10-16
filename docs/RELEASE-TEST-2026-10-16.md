@@ -1,6 +1,6 @@
-# Noctoware release test run — 2026-10-16T03:08:21-05:00
+# Noctoware release test run — 2026-10-16T07:29:34-05:00
 
-ISO: `noctoware-0.1-alpha-2026.10.16-x86_64.iso` (sha256 `3db057c577ed32a7…`)
+ISO: `noctoware-0.1-alpha-2026.10.16-x86_64.iso` (sha256 `f5c55c9ed81fa7c9…`)
 
 | scenario | result |
 |---|---|
@@ -13,11 +13,12 @@ ISO: `noctoware-0.1-alpha-2026.10.16-x86_64.iso` (sha256 `3db057c577ed32a7…`)
 | ext4-install | 1/1 checks passed |
 | ext4-installed | 22/22 checks passed |
 | plasma-nvidia-install | 1/1 checks passed |
-| plasma-nvidia-installed | 30/30 checks passed |
+| plasma-nvidia-installed | 31/31 checks passed |
 | plasma_later | 6/6 checks passed |
 | optin | 10/10 checks passed |
 | recovery | 9/9 checks passed |
 | multimonitor | 3/3 checks passed |
+| secureboot | 7/7 checks passed |
 
 ## Failures
 none

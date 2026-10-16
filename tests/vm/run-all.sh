@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Full release test suite in QEMU (two lanes in parallel, ~1.5 h).
+# Full release test suite in QEMU (two lanes in parallel, ~25 min).
 #   tests/vm/run-all.sh [ISO]
 # Results: tests/artifacts/release-<date>/SUMMARY.md
 set -uo pipefail
