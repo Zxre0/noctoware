@@ -276,6 +276,17 @@ def main() -> int:
                         "command -v codex claude fastfetch")
             c.check("Plasma session: KDE desktop, codex + claude (shim) on PATH",
                     "KDE" in out and "/usr/lib/noctoware/shims/claude" in out and "/usr/bin/codex" in out, out)
+            rc, out = q("kreadconfig6 --file kdeglobals --group General --key ColorScheme; "
+                        "kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage; "
+                        "grep -h 'Image=' ~/.config/plasma-org.kde.plasma.desktop-appletsrc 2>/dev/null | head -1; "
+                        "true", user=a.user)
+            _, ff = q(session_env(a.user, "plasmashell") + f"runuser -u {a.user} -- env "
+                      "XDG_CURRENT_DESKTOP=$XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP=KDE WAYLAND_DISPLAY=$WAYLAND_DISPLAY "
+                      "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR fastfetch --pipe --logo none | grep -E '^(OS|Desktop)'")
+            out = out + "\n" + ff
+            c.check("Plasma branding: Noctoware color scheme + look-and-feel + wallpaper; fastfetch shows KDE Plasma",
+                    "Noctoware" in out.split("\n")[0] and "org.noctoware.desktop" in out
+                    and "Noctoware-Nocturne" in out and "KDE Plasma" in out and "Noctoware Linux" in out, out)
             rc, out = q(f"pgrep -u {a.user} -x pipewire; pgrep -u {a.user} -x wireplumber; "
                         f"pgrep -u {a.user} -f xdg-desktop-portal-kde; systemctl is-active NetworkManager; "
                         f"pgrep -u {a.user} -x plasmashell >/dev/null && echo plasma")
@@ -298,7 +309,8 @@ def main() -> int:
 
         # ---- real `sudo pacman -Syu`, with [noctoware] served from this machine
         bump = a.artifacts / "repo"
-        prepare_bumped_repo(a.repo_dir, bump)
+        installed_rel = int(q("pacman -Q noctoware-welcome")[1].split()[-1].rsplit("-", 1)[1])
+        prepare_bumped_repo(a.repo_dir, bump, installed_rel + 1)   # always newer than the guest has
         with RepoServer(bump) as url:
             q(f"sed -i 's|^Server = .*|Server = {url}|' /etc/pacman.d/noctoware-mirrorlist")
             before = q("pacman -Q noctoware-welcome")[1]
@@ -317,13 +329,13 @@ def main() -> int:
     return finish(c, a, vm)
 
 
-def prepare_bumped_repo(src: Path, dst: Path) -> None:
+def prepare_bumped_repo(src: Path, dst: Path, pkgrel: int) -> None:
     """Copy [noctoware] and add noctoware-welcome with pkgrel+1, signed and indexed,
     so the update test exercises a real Noctoware package upgrade."""
     if dst.exists():
         shutil.rmtree(dst)
     shutil.copytree(src, dst, symlinks=False)
-    subprocess.run([str(ROOT / "tests/vm/make-bump.sh"), str(dst)], check=True)
+    subprocess.run([str(ROOT / "tests/vm/make-bump.sh"), str(dst), str(pkgrel)], check=True)
 
 
 if __name__ == "__main__":

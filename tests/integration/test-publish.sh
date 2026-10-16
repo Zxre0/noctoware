@@ -57,7 +57,7 @@ scripts/validate-update.sh --remote >"$T/val1.log" 2>&1          # pacman agains
 grep -q "resolves cleanly" "$T/val1.log"
 
 # upgrade publish: bump a package; the previous version stays for cached clients
-"$root/tests/vm/make-bump.sh" "$T/src/repository/x86_64" >/dev/null
+"$root/tests/vm/make-bump.sh" "$T/src/repository/x86_64" 4 >/dev/null
 scripts/publish-repo.sh --confirm >"$T/pub2.log" 2>&1
 ls "$assets" | grep -q 'noctoware-welcome-.*-4-any.pkg.tar.zst$'
 ls "$assets" | grep -qE 'noctoware-welcome-.*-3-any.pkg.tar.zst$'   # kept (previous generation)
