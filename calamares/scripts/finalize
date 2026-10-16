@@ -1,6 +1,14 @@
 #!/bin/bash
 # Runs inside the target as the last step.
 set -uo pipefail
+# packages only the installer needed (now orphans) — after every optional
+# component has been installed
+for _ in 1 2 3; do
+    orphans="$(pacman -Qdtq 2>/dev/null)" || break
+    [[ -n "$orphans" ]] || break
+    SNAP_PAC_SKIP=y pacman -Rns --noconfirm $orphans >/dev/null 2>&1 || break
+done
+
 # SDDM: preselect "Noctoware Hyprland" for the first login (users can pick
 # Plasma (Wayland) or another session from the menu; SDDM remembers it).
 install -d -o sddm -g sddm /var/lib/sddm 2>/dev/null || install -d /var/lib/sddm

@@ -9,10 +9,10 @@ while (($#)) && [[ "$1" != -- ]]; do inst+=("$1"); shift; done
 [[ "${1:-}" == -- ]] && shift; post=("$@")
 root="$(cd "$(dirname "$0")/../.." && pwd)"; A="$root/tests/artifacts/$name"
 rm -rf "$A"; mkdir -p "$A"
-python3 "$root/tests/vm/test_install.py" "$iso" --artifacts "$A/install" "${inst[@]}" >"$A/install.log" 2>&1
+python3 -u "$root/tests/vm/test_install.py" "$iso" --artifacts "$A/install" "${inst[@]}" >"$A/install.log" 2>&1
 echo "install exit=$?" >"$A/summary.txt"
 args=(--disk "$A/install/disk.qcow2" --artifacts "$A/installed")
 [[ -f "$A/install/OVMF_VARS.fd" ]] && args+=(--vars "$A/install/OVMF_VARS.fd")
-python3 "$root/tests/vm/test_installed.py" "${args[@]}" "${post[@]}" >"$A/installed.log" 2>&1
+python3 -u "$root/tests/vm/test_installed.py" "${args[@]}" "${post[@]}" >"$A/installed.log" 2>&1
 echo "installed exit=$?" >>"$A/summary.txt"
 grep -hE "^\[(PASS|FAIL)\]|checks passed" "$A/install.log" "$A/installed.log" >>"$A/summary.txt"

@@ -45,7 +45,10 @@ pacman-key --populate archlinux cachyos noctoware
 
 # 4. the installer itself is not part of the installed system
 log "removing installer packages"
-pacman -Rns --noconfirm noctoware-calamares-config noctoware-calamares 2>/dev/null ||
+# -Rn (not -Rns): its dependencies (kpmcore, qt6-imageformats, ...) may be
+# needed by optional components installed later from the offline cache;
+# genuine orphans are removed by `finalize` at the end.
+pacman -Rn --noconfirm noctoware-calamares-config noctoware-calamares 2>/dev/null ||
     pacman -Rdd --noconfirm noctoware-calamares-config noctoware-calamares 2>/dev/null || true
 for p in noctoware-live; do
     pacman -Q "$p" >/dev/null 2>&1 && pacman -Rns --noconfirm "$p"

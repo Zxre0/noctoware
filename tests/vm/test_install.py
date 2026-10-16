@@ -30,6 +30,28 @@ FS_COMBO = (480, 175)
 DESKTOP_PLASMA = (310, 85)
 USER_FIELDS = {"name": (310, 98), "login": (310, 158), "host": (310, 216), "pw": (310, 276), "pw2": (516, 276)}
 CONFIRM_INSTALL = (1038, 590)
+# Sidebar step rows (y at 1920x1080); the current step is highlighted purple.
+STEPS = {"welcome": 150, "location": 190, "keyboard": 228, "partitions": 266, "desktop": 306,
+         "users": 345, "summary": 384, "install": 422, "finish": 462}
+
+
+def on_step(png: Path, step: str) -> bool:
+    from PIL import Image
+    im = Image.open(png).convert("RGB")
+    sx, sy = im.size[0] / 1920, im.size[1] / 1080
+    r, g, b = im.getpixel((int(30 * sx), int(STEPS[step] * sy)))
+    return r > 120 and b > 200 and g < 150   # #9b6bff-ish highlight
+
+
+def wait_step(vm, step: str, timeout: float = 120) -> None:
+    """Block until Calamares shows `step` (pages can be slow, e.g. offline)."""
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if on_step(vm.screenshot("_probe"), step):
+            time.sleep(0.8)  # let the page finish laying out
+            return
+        time.sleep(1)
+    raise TimeoutError(f"installer never reached the {step} page")
 LOG = "/root/.cache/calamares/session.log"
 
 
@@ -74,21 +96,22 @@ def main() -> int:
             vm.qmp.click(*xy, 1920, 1080)
             time.sleep(wait)
 
+        wait_step(vm, "welcome", 180)
         shot("01-welcome")
-        click(NEXT); shot("02-location")
-        click(NEXT); shot("03-keyboard")
-        click(NEXT); shot("04-partitions")
+        click(NEXT); wait_step(vm, "location"); shot("02-location")
+        click(NEXT); wait_step(vm, "keyboard"); shot("03-keyboard")
+        click(NEXT); wait_step(vm, "partitions"); shot("04-partitions")
         click(ERASE_DISK, 2)
         if a.fs == "ext4":
             click(FS_COMBO)
             vm.qmp.keys("down", "ret")
             time.sleep(1)
         shot("05-erase-disk")
-        click(NEXT); shot("06-desktop")
+        click(NEXT); wait_step(vm, "desktop"); shot("06-desktop")
         if a.desktop == "plasma":
             click(DESKTOP_PLASMA)
             shot("06b-desktop-plasma")
-        click(NEXT, 2)
+        click(NEXT); wait_step(vm, "users")
         vm.fill(*USER_FIELDS["name"], "Nocto Tester")
         vm.fill(*USER_FIELDS["login"], a.user)
         vm.fill(*USER_FIELDS["host"], "noctotest")
@@ -96,10 +119,11 @@ def main() -> int:
         vm.fill(*USER_FIELDS["pw2"], a.password)
         time.sleep(1)
         shot("07-users")
-        click(NEXT, 2); shot("08-summary")
+        click(NEXT); wait_step(vm, "summary"); shot("08-summary")
         rc, s = vm.qga.run(f"grep -c 'Erase' {LOG}; grep -o 'packagechooser_desktop.*' {LOG} | tail -1")
         click(NEXT, 2); shot("09-confirm")
         click(CONFIRM_INSTALL, 5)
+        wait_step(vm, "install", 60)
         shot("10-installing")
 
         t0, result, last_job = time.time(), None, ""

@@ -238,6 +238,11 @@ def make_plan(gpus: list[Gpu], *, dkms: bool = False, secure_boot: bool | None =
     return Plan(gpus, profile, install, remove, list(dict.fromkeys(services)), files, warnings)
 
 
+def all_candidate_packages() -> list[str]:
+    pkgs = set(MESA_BASE + ALL_VENDOR_PKGS + NVIDIA_DKMS)
+    return sorted(pkgs)
+
+
 def _run(cmd: list[str], check: bool = True) -> int:
     print("+", " ".join(cmd), flush=True)
     r = subprocess.run(cmd)
@@ -317,7 +322,7 @@ def _print_plan(plan: Plan) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="noctoware-gpu", description=__doc__.split("\n")[0])
-    ap.add_argument("command", choices=["detect", "plan", "apply"])
+    ap.add_argument("command", choices=["detect", "plan", "apply", "packages"])
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--sysfs-root", type=Path, default=Path("/sys"))
     ap.add_argument("--mock-ids")
@@ -333,6 +338,9 @@ def main(argv: list[str] | None = None) -> int:
     if not a.mock_ids and mock_file.is_file():
         a.mock_ids = mock_file.read_text().strip()
         print(f"noctoware-gpu: using mock PCI ids from {mock_file}: {a.mock_ids}", file=sys.stderr)
+    if a.command == "packages":   # every package any plan can install (offline cache)
+        print("\n".join(all_candidate_packages()))
+        return 0
     gpus = parse_mock_ids(a.mock_ids) if a.mock_ids else scan_sysfs(a.sysfs_root)
     sb = {"on": True, "off": False}.get(a.secure_boot) if a.secure_boot else secure_boot_enabled(a.sysfs_root)
     dkms = a.dkms or os.environ.get("NOCTO_NVIDIA_DKMS") == "1"

@@ -29,9 +29,10 @@ ARCH_MIRROR="${NOCTO_ARCH_MIRROR:-https://geo.mirror.pkgbuild.com}"
 CACHY_MIRROR="${NOCTO_CACHY_MIRROR:-https://mirror.cachyos.org/repo}"
 W="$NOCTO_WORK/iso"
 P="$W/profile"
-OFFLINE_TARGETS=(noctoware-plasma
-                 linux-cachyos-nvidia-open linux-cachyos-lts-nvidia-open nvidia-utils lib32-nvidia-utils
-                 nvidia-settings libva-nvidia-driver egl-wayland nvidia-prime)
+# Optional components installed offline by the installer: KDE Plasma and
+# every driver package noctoware-gpu can choose for any hardware.
+mapfile -t gpu_pkgs < <(python3 -I "$NOCTO_ROOT/desktop/gpu/noctoware-gpu" packages)
+OFFLINE_TARGETS=(noctoware-plasma "${gpu_pkgs[@]}")
 
 [[ -f "$NOCTO_REPO_DIR/noctoware.db.tar.gz" ]] || die "no [noctoware] repo: run scripts/build-packages.sh first" "$E_BUILD"
 [[ -s "$NOCTO_KEYS_DIR/public/noctoware.gpg" ]] || die "missing keys/public/noctoware.gpg" "$E_SIGN"

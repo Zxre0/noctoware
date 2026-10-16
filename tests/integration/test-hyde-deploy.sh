@@ -2,7 +2,7 @@
 # Deploy HyDE from the built noctoware-hyde package into a throwaway HOME,
 # offline, then check: theme applied, package tree untouched, user edits
 # preserved on redeploy (package upgrade), and idempotency.
-set -euo pipefail
+set -Eeuo pipefail
 trap 'echo "FAILED at ${BASH_SOURCE[0]##*/}:$LINENO: $BASH_COMMAND" >&2' ERR
 root="$(cd "$(dirname "$0")/../.." && pwd)"; R="$root/repository/x86_64"
 T="$(mktemp -d)"; trap 'chmod -R u+w "$T"; rm -rf "$T"' EXIT
@@ -15,8 +15,16 @@ for l in "$T"/usr/share/noctoware/hyde/themes/Noctoware/{wallpapers,logo}/*; do 
 H="$T/home"; mkdir -p "$H"
 sum() { (cd "$T/usr" && find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum); }
 before="$(sum)"
-# runs in a network namespace with no connectivity: first login must work offline
-dep() { unshare --user --map-current-user --net env -i PATH="$T/usr/bin:/usr/bin:/bin" HOME="$H" USER=test LANG=C.UTF-8 \
+# runs in a network namespace with no connectivity: first login must work
+# offline.  Containers whose seccomp policy forbids unshare (e.g. Docker's
+# default, used by GitHub Actions) run it with network; VM tests cover offline.
+if unshare --user --map-current-user --net true 2>/dev/null; then
+    NETNS=(unshare --user --map-current-user --net)
+else
+    echo "note: user namespaces unavailable here; deploy test runs WITH network" >&2
+    NETNS=()
+fi
+dep() { "${NETNS[@]}" env -i PATH="$T/usr/bin:/usr/bin:/bin" HOME="$H" USER=test LANG=C.UTF-8 \
           NOCTO_HYDE_SHARE="$T/usr/share/noctoware/hyde" NOCTO_HYDE_VENV="$T/usr/lib/noctoware/hyde/python_env" \
           "$T/usr/bin/noctoware-hyde-deploy" "$@" >"$T/deploy.log" 2>&1; }
 dep

@@ -21,6 +21,7 @@ for f in ["calamares/settings.conf", *glob.glob("calamares/modules/*.conf"), "ca
     yaml.safe_load(open(f))
 '
 t calamares-sequence python3 -I tests/static/check_calamares.py
+t gpu-offline-coverage bash -c 'grep -q "noctoware-gpu\" packages" scripts/build-iso.sh && python3 -I desktop/gpu/noctoware-gpu packages | grep -q .'
 t pkgbuild-srcinfo bash -c 'for d in packages/*/; do (cd "$d" && makepkg --printsrcinfo >/dev/null) || exit 1; done'
 t os-release bash -c 'bsdtar -xOf repository/x86_64/noctoware-release-*.pkg.tar.zst etc/os-release | grep -qx "PRETTY_NAME=\"Noctoware Linux\""'
 t shell-switch bash tests/integration/test-shell-switch.sh
