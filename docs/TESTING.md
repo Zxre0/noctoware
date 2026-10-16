@@ -47,8 +47,10 @@ greeter) because QEMU cannot read GL scanouts in egl-headless mode.
 [noctoware] is served to the guests from the build host (the public GitHub
 repository is not published yet); Arch and CachyOS come from their mirrors.
 
-### Results — release run 2026-10-16 (`tests/vm/run-all.sh`)
-ISO `noctoware-0.1-alpha-2026.10.16-x86_64.iso`, KVM, virtio-gpu, two lanes in parallel.
+### Results — final release run 2026-10-16 (`tests/vm/run-all.sh`)
+ISO `noctoware-0.1-alpha-2026.10.16-x86_64.iso` (sha256 `3db057c577ed32a7…`),
+KVM, virtio-gpu, two lanes in parallel. **169 checks, 0 failures.**
+Full summary: `tests/artifacts/release-20261016-0246/SUMMARY.md`.
 
 | scenario | result |
 |---|---|
@@ -57,15 +59,11 @@ ISO `noctoware-0.1-alpha-2026.10.16-x86_64.iso`, KVM, virtio-gpu, two lanes in p
 | install Hyprland, Btrfs, UEFI → installed system | 1/1 → 23/23 |
 | install Hyprland, Btrfs, **BIOS** (GRUB) → installed system | 1/1 → 23/23 |
 | install Hyprland, **ext4**, UEFI → installed system | 1/1 → 22/22 |
-| install **Hyprland + KDE Plasma**, **no network**, mocked **hybrid Intel + NVIDIA RTX** → installed system (both sessions, switching, Steam in each, NVIDIA stack) | 1/1 → 29/29 |
+| install **Hyprland + KDE Plasma**, **no network**, mocked **hybrid Intel + NVIDIA RTX** → installed system (both sessions, audio/portals in Plasma, switching, Steam in each, NVIDIA stack) | 1/1 → 30/30 |
 | install KDE later with `sudo pacman -S noctoware-plasma` | 6/6 |
-| Claude Code (official installer, consent) + Revo Shell (macOS) + shell switching | 10/10* |
+| Claude Code (official installer, consent) + Revo Shell (macOS) + shell switching | 10/10 |
 | snapshot rollback + LTS recovery kernel | 9/9 |
 | multi-monitor: two displays on two GPUs, waybar + wallpaper on each | 3/3 |
-
-\* first run 9/10: Revo's quickshell started after the test's 120 s window
-under parallel load; re-verified manually and in an isolated re-run (wait
-raised to 300 s).
 
 What `test_installed.py` verifies: boots without the ISO; CachyOS kernel;
 `os-release`; no live-session leftovers (liveuser, NOPASSWD sudo, autologin,
