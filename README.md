@@ -19,6 +19,18 @@ and AI development tools ready to go.
 | AI tools | Codex CLI preinstalled; Claude Code via consent-based official installer |
 | Updates | `sudo pacman -Syu` — Noctoware, CachyOS and Arch packages together |
 
+## Screenshots
+Captured by the automated QEMU tests (`tests/vm/`) on the 0.1 Alpha ISO.
+
+| | |
+|---|---|
+| ![SDDM login](docs/screenshots/sddm-login.jpg) | ![Hyprland + HyDE with the Welcome app](docs/screenshots/hyprland-welcome.jpg) |
+| Noctoware SDDM theme | Hyprland + HyDE, Noctoware Welcome |
+| ![Installer: partitions](docs/screenshots/installer-partitions.jpg) | ![Installer: desktop choice](docs/screenshots/installer-desktop.jpg) |
+| Calamares: Btrfs/ext4, erase disk | Calamares: Hyprland or Hyprland + KDE Plasma |
+| ![Installing](docs/screenshots/installer-progress.jpg) | ![KDE Plasma 6](docs/screenshots/plasma-desktop.jpg) |
+| Installation slideshow | Optional KDE Plasma 6 (Wayland) session |
+
 ## Quick start (developers)
 ```
 scripts/prepare.sh

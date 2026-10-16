@@ -31,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 # Field positions of the Noctoware SDDM theme at 1920x1080.
 SDDM_USER, SDDM_PASSWORD, SDDM_SESSION = (364, 596), (364, 656), (304, 716)
+SDDM_SESSION_ROW0, SDDM_SESSION_ROW_H = 757, 41   # first row of the opened session list
 
 
 def sddm_login(vm: VM, user: str, password: str, session_index_down: int | None = None) -> None:
@@ -39,18 +40,67 @@ def sddm_login(vm: VM, user: str, password: str, session_index_down: int | None 
     vm.qmp.click(*SDDM_USER, 1920, 1080)
     vm.qmp.keys("ctrl-a", "backspace")
     vm.qmp.type(user)
-    if session_index_down is not None:
+    if session_index_down is not None:   # open the session list and click the Nth row
         vm.qmp.click(*SDDM_SESSION, 1920, 1080)
+        time.sleep(1.0)
+        vm.qmp.click(SDDM_SESSION[0], SDDM_SESSION_ROW0 + SDDM_SESSION_ROW_H * session_index_down, 1920, 1080)
         time.sleep(0.8)
-        vm.qmp.keys("home")
-        for _ in range(session_index_down):
-            vm.qmp.keys("down")
-        vm.qmp.keys("ret")
-        time.sleep(0.5)
     vm.qmp.click(*SDDM_PASSWORD, 1920, 1080)
     vm.qmp.keys("ctrl-a", "backspace")
     vm.qmp.type(password)
     vm.qmp.keys("ret")
+
+
+def session_index(vm: VM, desktop_file: str) -> int:
+    """SDDM lists wayland sessions sorted by file name."""
+    _, out = vm.qga.run("ls /usr/share/wayland-sessions | sort")
+    return out.split().index(desktop_file)
+
+
+def logout(vm: VM, user: str) -> None:
+    vm.qga.run(f"loginctl terminate-user {user}")
+    vm.wait_for(f"! pgrep -u {user} -x Hyprland && ! pgrep -u {user} -x kwin_wayland && systemctl is-active sddm",
+                timeout=120)
+    time.sleep(8)  # greeter restarts
+
+
+def login_session(vm: VM, user: str, password: str, desktop_file: str, ready: str, timeout: int = 240) -> str:
+    idx = session_index(vm, desktop_file)
+    for attempt in range(3):
+        sddm_login(vm, user, password, session_index_down=idx)
+        try:
+            return vm.wait_for(ready, timeout=timeout // 3)
+        except TimeoutError:
+            vm.screenshot(f"login-{desktop_file}-attempt{attempt + 1}")
+    raise TimeoutError(f"could not log into {desktop_file}")
+
+
+def session_env(user: str, proc: str) -> str:
+    """Shell prefix that runs a command inside the user's graphical session."""
+    return (f"pid=$(pgrep -u {user} -x {proc} | head -1); "
+            f"eval $(tr '\\0' '\\n' < /proc/$pid/environ | grep -E "
+            "'^(WAYLAND_DISPLAY|DISPLAY|XDG_RUNTIME_DIR|DBUS_SESSION_BUS_ADDRESS|XDG_CURRENT_DESKTOP|PATH)=' "
+            "| sed 's/^/export /; s/=/=\"/; s/$/\"/'); ")
+
+
+def steam_launches(vm: VM, user: str, proc: str) -> tuple[bool, str]:
+    """Start Steam inside the session and check the bootstrapper runs."""
+    vm.qga.run(f"pkill -u {user} -f steam; rm -f /tmp/steam-{proc}.log; test -n \"$(pgrep -u {user} -x {proc})\"",
+               timeout=30)
+    if vm.qga.run(f"pgrep -u {user} -x {proc}")[0] != 0:
+        return False, f"no {proc} session running"
+    vm.qga.run(session_env(user, proc) + f"runuser -u {user} -- env WAYLAND_DISPLAY=$WAYLAND_DISPLAY "
+               f"DISPLAY=$DISPLAY XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS "
+               f"PATH=$PATH setsid steam > /tmp/steam-{proc}.log 2>&1 < /dev/null &", timeout=30)
+    # the real client (ubuntu12_32/steam) only starts once the bootstrapper has
+    # updated Steam over the network and found a working display + 32-bit stack
+    try:
+        vm.wait_for(f"pgrep -u {user} -f 'ubuntu12_32/steam' >/dev/null", timeout=900, interval=10)
+        ok = True
+    except TimeoutError:
+        ok = False
+    _, log = vm.qga.run(f"tail -5 /tmp/steam-{proc}.log; pgrep -u {user} -a steam | head -3")
+    return ok, log
 
 
 def main() -> int:
@@ -141,13 +191,10 @@ def main() -> int:
         # ---- graphical login into Noctoware Hyprland
         time.sleep(5)
         vm.screenshot("sddm-greeter")
-        for attempt in range(3):   # synthetic keys can be dropped; retry the greeter login
-            sddm_login(vm, a.user, a.password)
-            try:
-                vm.wait_for(f"pgrep -u {a.user} -x Hyprland", timeout=60)
-                break
-            except TimeoutError:
-                vm.screenshot(f"login-attempt-{attempt + 1}")
+        try:
+            login_session(vm, a.user, a.password, "noctoware-hyprland.desktop", f"pgrep -u {a.user} -x Hyprland")
+        except TimeoutError:
+            pass  # reported by the next check
         try:
             out = vm.wait_for(f"pgrep -u {a.user} -x Hyprland && test -f /home/{a.user}/.local/state/noctoware/hyde-deployed "
                               f"&& pgrep -u {a.user} -x waybar", timeout=300)
@@ -169,6 +216,46 @@ def main() -> int:
                 len(out.splitlines()) >= 4, out)
         rc, out = q("codex --version && { claude --version </dev/null; echo rc=$?; }", user=a.user)
         c.check("codex works; claude offers the consent-based setup", "rc=127" in out and "noctoware-claude-setup" in out, out)
+
+        ok_steam, log = steam_launches(vm, a.user, "Hyprland")
+        c.check("Steam launches from Hyprland", ok_steam, log)
+        vm.screenshot("hyprland-steam")
+        vm.qga.run(f"pkill -u {a.user} -f steam")
+
+        if a.plasma:
+            # ---- switch to KDE Plasma (Wayland) and back
+            logout(vm, a.user)
+            try:
+                out = login_session(vm, a.user, a.password, "plasma.desktop",
+                                    f"pgrep -u {a.user} -x plasmashell && pgrep -u {a.user} -x kwin_wayland")
+                c.check("SDDM → Plasma (Wayland) session starts", True, out)
+            except TimeoutError as e:
+                c.check("SDDM → Plasma (Wayland) session starts", False, str(e))
+            time.sleep(15)
+            vm.screenshot("plasma-desktop")
+            rc, out = q(f"cat /home/{a.user}/.local/state/noctoware/kdeglobals/active; "
+                        f"grep -c 'ColorScheme=colors' /home/{a.user}/.config/kdeglobals 2>/dev/null; true")
+            c.check("Plasma gets its own kdeglobals (HyDE's not applied)", out.split()[0] == "plasma"
+                    and (len(out.split()) == 1 or out.split()[1] == "0"), out)
+            rc, out = q(session_env(a.user, "plasmashell") + "echo $XDG_CURRENT_DESKTOP; echo $PATH; "
+                        "command -v codex claude fastfetch")
+            c.check("Plasma session: KDE desktop, codex + claude (shim) on PATH",
+                    "KDE" in out and "/usr/lib/noctoware/shims/claude" in out and "/usr/bin/codex" in out, out)
+            rc, out = q("fastfetch --pipe --logo none", user=a.user)
+            ok_steam, log = steam_launches(vm, a.user, "plasmashell")
+            c.check("Steam launches from Plasma", ok_steam, log)
+            logout(vm, a.user)
+            try:
+                out = login_session(vm, a.user, a.password, "noctoware-hyprland.desktop",
+                                    f"pgrep -u {a.user} -x Hyprland && pgrep -u {a.user} -x waybar")
+                c.check("switch back to Noctoware Hyprland", True, out)
+            except TimeoutError as e:
+                c.check("switch back to Noctoware Hyprland", False, str(e))
+            rc, out = q(f"cat /home/{a.user}/.local/state/noctoware/kdeglobals/active; "
+                        f"grep -c 'ColorScheme=colors' /home/{a.user}/.config/kdeglobals; "
+                        f"grep HYDE_THEME /home/{a.user}/.local/state/hyde/staterc")
+            c.check("HyDE configuration intact after using Plasma",
+                    out.split()[0] == "hyprland" and "Noctoware" in out, out)
 
         # ---- real `sudo pacman -Syu`, with [noctoware] served from this machine
         bump = a.artifacts / "repo"

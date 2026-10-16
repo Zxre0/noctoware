@@ -280,6 +280,18 @@ class VM:
         GL/dmabuf scanouts under egl-headless.  Falls back to screendump
         (boot menus, SDDM's X11 greeter, consoles)."""
         p = self.dir / f"{name}.png"
+        try:  # KDE Plasma: KWin has no wlr-screencopy; use Spectacle
+            rc, out = self.qga.run(
+                "pid=$(pgrep -x kwin_wayland | head -1); [ -n \"$pid\" ] || exit 3; u=$(ps -o user= -p $pid); "
+                "uid=$(id -u $u); s=$(ls /run/user/$uid | grep -E '^wayland-[0-9]+$' | head -1); "
+                "runuser -u $u -- env XDG_RUNTIME_DIR=/run/user/$uid "
+                "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus WAYLAND_DISPLAY=$s "
+                "spectacle -b -n -f -o /tmp/nocto-shot.png >/dev/null 2>&1 && base64 -w0 /tmp/nocto-shot.png", timeout=90)
+            if rc == 0 and out:
+                p.write_bytes(base64.b64decode(out))
+                return p
+        except Exception:  # noqa: BLE001
+            pass
         try:
             rc, out = self.qga.run(
                 "for d in /run/user/*/; do u=$(stat -c %U $d); s=$(ls $d | grep -E '^wayland-[0-9]+$' | head -1); "
