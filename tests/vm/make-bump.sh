@@ -3,13 +3,15 @@
 # to a copy of [noctoware], so VM tests can exercise a real package upgrade.
 source "$(dirname "$0")/../../scripts/lib/common.sh"
 dst="$(realpath "$1")"; [[ -f "$dst/noctoware.db.tar.gz" ]] || die "not a repo copy: $dst" "$E_USAGE"
-tmp="$NOCTO_ROOT/packages/.bump-noctoware-welcome"   # inside the tree so $startdir/../.. resolves
-rm -rf "$tmp"; cp -r "$NOCTO_ROOT/packages/noctoware-welcome" "$tmp"
-trap 'rm -rf "$tmp"' EXIT
+# unique per invocation (parallel VM tests); inside the tree so $startdir/../.. resolves
+tmp="$(mktemp -d "$NOCTO_ROOT/packages/.bump-noctoware-welcome.XXXXXX")"
+bdir="$(mktemp -d "$NOCTO_WORK/bump-build.XXXXXX")"
+cp -r "$NOCTO_ROOT/packages/noctoware-welcome/." "$tmp/"
+trap 'rm -rf "$tmp" "$bdir"' EXIT
 rel="$(sed -n 's/^pkgrel=//p' "$tmp/PKGBUILD")"
 sed -i "s/^pkgrel=.*/pkgrel=$((rel + 1))/" "$tmp/PKGBUILD"
 key="$(signing_key)"
-(cd "$tmp" && PKGDEST="$dst" BUILDDIR="$NOCTO_WORK/build" makepkg -f --nodeps --noconfirm >/dev/null 2>&1) || die "bump build failed" "$E_BUILD"
+(cd "$tmp" && PKGDEST="$dst" BUILDDIR="$bdir" makepkg -f --nodeps --noconfirm >/dev/null 2>&1) || die "bump build failed" "$E_BUILD"
 f="$(cd "$tmp" && PKGDEST="$dst" makepkg --packagelist)"
 GNUPGHOME="$NOCTO_GNUPGHOME" gpg --batch --yes --detach-sign -u "$key" "$f"
 # GitHub-style flat repo: real files, no symlinks

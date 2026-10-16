@@ -80,9 +80,10 @@ def main() -> int:
             c.check("Revo active with the macOS interface", "active shell: revo" in out and "macos" in out, out)
             login_session(vm, u, a.password, "noctoware-hyprland.desktop", f"pgrep -u {u} -x Hyprland")
             try:
-                out = vm.wait_for(f"pgrep -u {u} -f quickshell", timeout=120)
+                out = vm.wait_for(f"pgrep -u {u} -f quickshell", timeout=300)  # slow under parallel load
             except TimeoutError as e:
                 out = str(e)
+                vm.screenshot("revo-no-quickshell")
             time.sleep(15)
             rc, out = q(f"pid=$(pgrep -u {u} -x Hyprland); tr '\\0' '\\n' < /proc/$pid/environ | grep -c HYPRLAND_CONFIG; "
                         f"pgrep -u {u} -a quickshell | head -2; pgrep -u {u} -x waybar; echo end")
