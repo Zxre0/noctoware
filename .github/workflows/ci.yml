@@ -24,7 +24,7 @@ jobs:
             cmake ninja cli11 nlohmann-json hyprlang hyprutils pkgconf rsync curl jq fakeroot shellcheck
       - uses: actions/checkout@v4
       - name: Install package build dependencies (derived from PKGBUILDs)
-        run: scripts/ci-install-deps.sh
+        run: scripts/ci-install-deps.sh --runtime noctoware-hyde
       - name: Create unprivileged builder (makepkg refuses root)
         run: |
           useradd -m builder

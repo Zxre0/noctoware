@@ -35,7 +35,7 @@ jobs:
             cmake ninja cli11 nlohmann-json hyprlang hyprutils pkgconf rsync curl jq fakeroot github-cli
       - uses: actions/checkout@v4
       - name: Install package build dependencies (derived from PKGBUILDs)
-        run: scripts/ci-install-deps.sh
+        run: scripts/ci-install-deps.sh --runtime noctoware-hyde
       - name: Prepare builder and import release key
         env:
           KEY_ASC: ${{ secrets.NOCTO_SIGNING_KEY_ASC }}

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Hyprland (HyDE) and Plasma must each keep their own ~/.config/kdeglobals.
 set -euo pipefail
+trap 'echo "FAILED at ${BASH_SOURCE[0]##*/}:$LINENO: $BASH_COMMAND" >&2' ERR
 root="$(cd "$(dirname "$0")/../.." && pwd)"; S="$root/desktop/session/kdeglobals-swap"
 H="$(mktemp -d)"; trap 'rm -rf "$H"' EXIT
 run() { env -u XDG_CONFIG_HOME -u XDG_STATE_HOME HOME="$H" sh "$S" "$@"; }

@@ -5,6 +5,10 @@
 # PKGBUILDs, so workflows never carry hand-maintained dependency lists.
 source "$(dirname "$0")/lib/common.sh"
 ((EUID == 0)) || die "run as root" "$E_USAGE"
+# --runtime PKG...: also install the runtime depends of these packages
+# (integration tests exercise them, e.g. the offline HyDE deploy)
+runtime=()
+if [[ "${1:-}" == --runtime ]]; then shift; runtime=("$@"); fi
 mapfile -t ours < <(package_dirs)
 deps=()
 for p in "${ours[@]}"; do
@@ -15,6 +19,9 @@ for p in "${ours[@]}"; do
         # link-time deps only for packages that compile code (CMake builds)
         [[ " ${makedepends[*]} " == *" cmake "* ]] && printf '%s\n' "${depends[@]}"
         true))
+done
+for p in "${runtime[@]}"; do
+    mapfile -t -O "${#deps[@]}" deps < <(cd "$NOCTO_ROOT/packages/$p" && (set +eu; source ./PKGBUILD; printf '%s\n' "${depends[@]}"))
 done
 # drop version constraints, our own packages and virtual names they provide
 mapfile -t deps < <(printf '%s\n' "${deps[@]}" | sed 's/[<>=].*//' | sort -u |

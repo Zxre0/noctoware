@@ -3,6 +3,7 @@
 # offline, then check: theme applied, package tree untouched, user edits
 # preserved on redeploy (package upgrade), and idempotency.
 set -euo pipefail
+trap 'echo "FAILED at ${BASH_SOURCE[0]##*/}:$LINENO: $BASH_COMMAND" >&2' ERR
 root="$(cd "$(dirname "$0")/../.." && pwd)"; R="$root/repository/x86_64"
 T="$(mktemp -d)"; trap 'chmod -R u+w "$T"; rm -rf "$T"' EXIT
 for p in noctoware-hyde noctoware-branding hyprquery; do
