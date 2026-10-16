@@ -8,15 +8,21 @@ source "$(dirname "$0")/lib/common.sh"
 mapfile -t ours < <(package_dirs)
 deps=()
 for p in "${ours[@]}"; do
-    info="$(cd "$NOCTO_ROOT/packages/$p" && runuser -u nobody -- makepkg --printsrcinfo 2>/dev/null || makepkg --printsrcinfo)"
-    mapfile -t -O "${#deps[@]}" deps < <(awk -F' = ' '/^\t(makedepends|checkdepends) = /{print $2}' <<<"$info")
-    # link-time deps only for packages that compile code (CMake builds)
-    if grep -q $'^\tmakedepends = cmake' <<<"$info"; then
-        mapfile -t -O "${#deps[@]}" deps < <(awk -F' = ' '/^\tdepends = /{print $2}' <<<"$info")
-    fi
+    # PKGBUILDs only set variables at top level (no makepkg as root needed)
+    mapfile -t -O "${#deps[@]}" deps < <(cd "$NOCTO_ROOT/packages/$p" && (
+        set +eu; source ./PKGBUILD
+        printf '%s\n' "${makedepends[@]}" "${checkdepends[@]}"
+        # link-time deps only for packages that compile code (CMake builds)
+        [[ " ${makedepends[*]} " == *" cmake "* ]] && printf '%s\n' "${depends[@]}"
+        true))
 done
 # drop version constraints, our own packages and virtual names they provide
 mapfile -t deps < <(printf '%s\n' "${deps[@]}" | sed 's/[<>=].*//' | sort -u |
     grep -vxF -f <(printf '%s\n' "${ours[@]}" calamares) | grep -v '^noctoware-')
+# runtime-only deps from other repos (e.g. [cachyos] mkinitcpio-openswap) are not needed to build
+mapfile -t avail < <(pacman -Slq | sort -u)
+missing=($(comm -23 <(printf '%s\n' "${deps[@]}") <(printf '%s\n' "${avail[@]}")))
+((${#missing[@]})) && warn "not in this host's repos, skipped: ${missing[*]}"
+mapfile -t deps < <(comm -12 <(printf '%s\n' "${deps[@]}") <(printf '%s\n' "${avail[@]}"))
 log "installing ${#deps[@]} build dependencies"
 pacman -S --needed --noconfirm "${deps[@]}"

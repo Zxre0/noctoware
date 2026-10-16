@@ -42,7 +42,9 @@ def main() -> int:
     ap.add_argument("--password", default="Noctoware-Test-2026")
     ap.add_argument("--artifacts", type=Path, default=Path("tests/artifacts") / time.strftime("install-%Y%m%d-%H%M%S"))
     ap.add_argument("--attach", type=Path, help="drive an already running debug VM in this dir")
+    ap.add_argument("--keep", action="store_true", help="leave the VM running")
     a = ap.parse_args()
+    a.keep = a.keep or bool(a.attach)
 
     c = Checks()
     if a.attach:
@@ -117,7 +119,7 @@ def main() -> int:
         rc, log = vm.qga.run("cat /tmp/install.log")
         (a.artifacts / "calamares-session.log").write_text(log)
     finally:
-        if not a.attach:
+        if not (a.attach or a.keep):
             vm.stop()
     return finish(c, a, vm)
 
