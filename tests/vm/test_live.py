@@ -127,7 +127,7 @@ def main() -> int:
             vm.wait_for("systemctl is-active pacman-init", timeout=180)
             with RepoServer(ROOT / "repository/x86_64") as url:
                 vm.qga.run(f"sed -i 's|^Server = .*|Server = {url}|' /etc/pacman.d/noctoware-mirrorlist")
-                rc, out = vm.qga.run("pacman -Sy --noconfirm 2>&1 && pacman -Sl noctoware | head -3", timeout=300)
+                rc, out = vm.qga.run("pacman -Syy --noconfirm 2>&1 && pacman -Sl noctoware | head -3", timeout=300)
             c.check("pacman syncs [noctoware], [cachyos], core, extra, multilib (signed dbs)",
                     rc == 0 and all(r in out for r in ("noctoware", "cachyos", "core", "extra", "multilib")), out)
         except TimeoutError as e:

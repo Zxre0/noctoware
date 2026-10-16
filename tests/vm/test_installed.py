@@ -58,10 +58,19 @@ def session_index(vm: VM, desktop_file: str) -> int:
 
 
 def logout(vm: VM, user: str) -> None:
-    vm.qga.run(f"loginctl terminate-user {user}")
-    vm.wait_for(f"! pgrep -u {user} -x Hyprland && ! pgrep -u {user} -x kwin_wayland && systemctl is-active sddm",
+    """Log out the way users do (HyDE's logout = `uwsm stop`; Plasma = KDE
+    Shutdown D-Bus API).  An abrupt `loginctl terminate-user` makes SDDM 0.21
+    treat the session helper as crashed and not respawn the greeter."""
+    if vm.qga.run(f"pgrep -u {user} -x Hyprland")[0] == 0:
+        vm.qga.run(session_env(user, "Hyprland") + f"runuser -u {user} -- env XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR "
+                   "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS uwsm stop")
+    elif vm.qga.run(f"pgrep -u {user} -x plasmashell")[0] == 0:
+        vm.qga.run(session_env(user, "plasmashell") + f"runuser -u {user} -- env "
+                   "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS dbus-send --session --dest=org.kde.Shutdown "
+                   "--type=method_call /Shutdown org.kde.Shutdown.logout")
+    vm.wait_for(f"! pgrep -u {user} -x Hyprland && ! pgrep -u {user} -x kwin_wayland && pgrep -f sddm-greeter",
                 timeout=120)
-    time.sleep(8)  # greeter restarts
+    time.sleep(6)
 
 
 def login_session(vm: VM, user: str, password: str, desktop_file: str, ready: str, timeout: int = 240) -> str:
@@ -263,7 +272,7 @@ def main() -> int:
         with RepoServer(bump) as url:
             q(f"sed -i 's|^Server = .*|Server = {url}|' /etc/pacman.d/noctoware-mirrorlist")
             before = q("pacman -Q noctoware-welcome")[1]
-            rc, out = q("set -o pipefail; pacman -Syu --noconfirm 2>&1 | tail -25", timeout=3600)
+            rc, out = q("set -o pipefail; pacman -Syyu --noconfirm 2>&1 | tail -25", timeout=3600)
             after = q("pacman -Q noctoware-welcome")[1]
             c.check("sudo pacman -Syu succeeds (Arch + CachyOS + [noctoware], signatures verified)", rc == 0, out)
             c.check("Noctoware package upgraded via pacman", before != after, f"{before} -> {after}")

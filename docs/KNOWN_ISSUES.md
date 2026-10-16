@@ -23,3 +23,9 @@
   Hyprland") skips the swap.
 * **HyDE `xdg-prefs`** (optional GUI) is not bundled (PySide6 size).
 * **Revo Shell** is never shipped (no upstream license); opt-in download.
+* **SDDM after a crashed session**: if a desktop session is killed abruptly
+  (compositor crash, `loginctl terminate-user`), SDDM 0.21 may not bring the
+  greeter back (black screen). Switch to a text console (Ctrl+Alt+F3) and run
+  `sudo systemctl restart sddm`. Normal logouts are not affected.
+* **Two welcome apps on first Plasma login**: KDE's Welcome Center and the
+  Noctoware Welcome app both open once.

@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import base64
+import signal
 import json
 import os
 import shutil
@@ -340,7 +341,11 @@ def create_disk(path: Path, size: str = "64G") -> Path:
 
 class RepoServer:
     """Serve a local directory over HTTP to the guest (QEMU user-net: host = 10.0.2.2)."""
-    def __init__(self, directory: Path, port: int = 8080):
+    def __init__(self, directory: Path, port: int = 0):
+        if port == 0:  # pick a free port so parallel VM tests don't collide
+            with socket.socket() as s:
+                s.bind(("0.0.0.0", 0))
+                port = s.getsockname()[1]
         self.dir, self.port = Path(directory), port
         self.proc = None
 
@@ -354,3 +359,8 @@ class RepoServer:
     def __exit__(self, *exc):
         self.proc.terminate()
         self.proc.wait()
+
+
+# A killed test (SIGTERM) must still run its `finally:` blocks so the VM is
+# powered off and its disk image unlocked.
+signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(SystemExit(143)))
