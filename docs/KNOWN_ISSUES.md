@@ -3,11 +3,13 @@
 * **Signing key**: `keys/public` currently holds a *local development key*.
   It must be replaced by the project release key before anything is
   published (publish-repo.sh refuses dev-signed packages).
-* **Not yet published**: the GitHub Releases repository URL in
-  `noctoware.conf` (`noctoware/noctoware`) is a placeholder until the project
-  is pushed; until then `pacman -Syu` on an installed system can't reach
-  `[noctoware]`
-  (Arch/CachyOS updates work).
+* **Repository not yet published**: `[noctoware]` is configured for
+  GitHub Releases of `Zxre0/noctoware` (tag `repo-x86_64`). Until it is
+  published there, `sudo pacman -Syu` on an installed system fails at the
+  `[noctoware]` database download (pacman aborts the whole sync). The VM tests
+  serve the repository locally instead. **The GitHub repository must be public**
+  for pacman to download release assets without credentials (or move hosting,
+  see docs/REPOSITORY.md).
 * **Secure Boot** unsupported out of the box (see docs/SECURE_BOOT.md).
 * **Snapshot booting** from the boot menu is not available with systemd-boot
   (UEFI default); use `noctoware-rollback` (docs/RECOVERY.md).

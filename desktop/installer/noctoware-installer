@@ -8,4 +8,8 @@ fi
 if pgrep -x calamares >/dev/null; then
     echo "the installer is already running" >&2; exit 0
 fi
-exec sudo -E env "PATH=$PATH" calamares -c /usr/share/noctoware/calamares -d "$@"
+# Pass only what the GUI needs to reach this Wayland session; HOME stays
+# /root so the installer log is where the umount module expects it.
+exec sudo env "WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}" "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-}" \
+    "DISPLAY=${DISPLAY:-}" "QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-wayland;xcb}" \
+    calamares -c /usr/share/noctoware/calamares -d "$@"

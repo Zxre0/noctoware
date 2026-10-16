@@ -19,6 +19,7 @@ cachyos-mirrorlist
 
 ## Noctoware
 noctoware-desktop
+noctoware-calamares
 noctoware-calamares-config
 
 ## boot loaders (systemd-boot is part of systemd; GRUB for BIOS installs)
@@ -39,6 +40,7 @@ cryptsetup
 lvm2
 mdadm
 gptfdisk
+os-prober
 parted
 smartmontools
 nvme-cli

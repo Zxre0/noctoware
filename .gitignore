@@ -12,3 +12,4 @@ packages/*/*.pkg.tar.*
 packages/*/*.log
 *.pyc
 __pycache__/
+packages/.bump-*/

@@ -7,7 +7,7 @@ pkgver=0.1
 pkgrel=1
 pkgdesc="Noctoware Linux AI development tools (Codex CLI, Claude Code setup, dev toolchain)"
 arch=('any')
-url="https://github.com/noctoware/noctoware"
+url="https://github.com/Zxre0/noctoware"
 license=('MIT')
 depends=('openai-codex' 'git' 'nodejs' 'npm' 'python' 'python-pip' 'base-devel'
          'ripgrep' 'curl' 'bash')

@@ -64,7 +64,15 @@ done
 mkdir -p "$W/frozen/cachyos"
 curl -fsSL "$CACHY_MIRROR/x86_64/cachyos/cachyos.db" -o "$W/frozen/cachyos/cachyos.db" || die "download cachyos.db failed" "$E_BUILD"
 archive_date="$(date -u -d yesterday +%Y/%m/%d)"
-sed -e "s|@FROZEN@|$W/frozen|g" -e "s|@LOCALREPO@|$NOCTO_REPO_DIR|g" \
+port="${NOCTO_FROZEN_PORT:-18765}"
+python3 -I "$NOCTO_ROOT/scripts/lib/frozen-mirror.py" "$W/frozen" "$port" \
+    "cachyos=$CACHY_MIRROR/x86_64/cachyos" "core=$ARCH_MIRROR/core/os/x86_64" \
+    "extra=$ARCH_MIRROR/extra/os/x86_64" "multilib=$ARCH_MIRROR/multilib/os/x86_64" &
+mirror_pid=$!
+trap 'kill $mirror_pid 2>/dev/null' EXIT
+sleep 1
+curl -fsS -o /dev/null "http://127.0.0.1:$port/core/core.db" || die "frozen mirror did not start" "$E_BUILD"
+sed -e "s|@FROZEN@|http://127.0.0.1:$port|g" -e "s|@LOCALREPO@|$NOCTO_REPO_DIR|g" \
     -e "s|@ARCHIVE_DATE@|$archive_date|g" -e "s|@GPGDIR@|$W/gnupg|g" \
     "$P/pacman.conf.in" >"$P/pacman.build.conf"
 rm -f "$P/pacman.conf.in"
@@ -76,6 +84,7 @@ if [[ $offline -eq 1 ]]; then
     mkdir -p "$db/sync"
     cp "$W"/frozen/*/*.db "$db/sync/"
     cp -L "$NOCTO_REPO_DIR/noctoware.db.tar.gz" "$db/sync/noctoware.db"
+    cp -L "$NOCTO_REPO_DIR/noctoware.db.tar.gz.sig" "$db/sync/noctoware.db.sig"   # [noctoware] requires signed dbs
     pac() { pacman --config "$P/pacman.build.conf" --dbpath "$db" --noconfirm "$@"; }
     mapfile -t iso_pkgs < <(grep -vE '^\s*(#|$)' "$P/packages.x86_64")
     live_set="$(pac -Sp --print-format '%n' "${iso_pkgs[@]}" | sort -u)" || die "ISO package list does not resolve" "$E_BUILD"
@@ -86,7 +95,7 @@ if [[ $offline -eq 1 ]]; then
     if ((${#extra[@]})); then
         pac -Sw -dd --cachedir "$cache" "${extra[@]}" >/dev/null || die "offline download failed" "$E_BUILD"
     fi
-    cp "$db"/sync/*.db "$P/airootfs/opt/noctoware/offline/sync/"
+    cp "$db"/sync/*.db "$db"/sync/*.sig "$P/airootfs/opt/noctoware/offline/sync/"
     ok "offline cache: ${#extra[@]} packages ($(du -sh "$cache" | cut -f1))"
 fi
 
@@ -102,11 +111,7 @@ mkarchiso -v -w "$W/archiso" -o "$NOCTO_OUT" "$P" >"$W/mkarchiso.log" 2>&1 || {
 iso="$(ls -t "$NOCTO_OUT"/noctoware-*.iso | head -1)"
 (cd "$NOCTO_OUT" && sha256sum "$(basename "$iso")" >"$(basename "$iso").sha256")
 if [[ -n "${SUDO_USER:-}" ]]; then
-    chown "$SUDO_USER:" "$iso" "$iso.sha256"
-    key="$(signing_key || true)"
-    if [[ -n "$key" ]]; then
-        sudo -u "$SUDO_USER" env GNUPGHOME="$NOCTO_GNUPGHOME" gpg --batch --yes --detach-sign -u "$key" "$iso" &&
-            ok "signed $(basename "$iso").sig"
-    fi
+    chown "$SUDO_USER:" "$iso" "$iso.sha256" "$NOCTO_OUT"
 fi
 ok "ISO ready: $iso ($(du -h "$iso" | cut -f1))"
+log "sign it (as your user): scripts/sign-iso.sh"

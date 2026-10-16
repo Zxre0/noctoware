@@ -248,6 +248,9 @@ def _run(cmd: list[str], check: bool = True) -> int:
 
 def apply_plan(plan: Plan, root: Path, offline_cache: Path | None) -> None:
     """Install/remove packages in the target system mounted at *root*."""
+    if root.resolve() != Path("/"):
+        # installer context: snapper is configured later, don't let snap-pac run
+        os.environ["SNAP_PAC_SKIP"] = "y"
     if not (root / "etc" / "os-release").exists():
         raise SystemExit(f"{root} does not look like an installed system")
     chroot = [] if root.resolve() == Path("/") else ["arch-chroot", str(root)]
@@ -263,9 +266,20 @@ def apply_plan(plan: Plan, root: Path, offline_cache: Path | None) -> None:
         installed = subprocess.run(chroot + ["pacman", "-Qq"], capture_output=True, text=True, check=True).stdout.split()
         to_remove = [p for p in plan.remove if p in installed]
         if to_remove:
-            # -Rdd is never used: anything still required (e.g. by steam) stays.
-            for p in to_remove:
-                _run(chroot + ["pacman", "-R", "--noconfirm", p], check=False)
+            # One transaction first (pacman orders inter-dependent removals, e.g.
+            # vpl-gpu-rt before intel-media-driver).  If something outside the
+            # set still needs a package (e.g. steam -> lib32-vulkan-driver) the
+            # transaction fails; then remove what can be removed, repeating
+            # until nothing changes.  -Rdd is never used.
+            if _run(chroot + ["pacman", "-R", "--noconfirm"] + to_remove, check=False) != 0:
+                pending = list(to_remove)
+                while pending:
+                    left = [p for p in pending
+                            if _run(chroot + ["pacman", "-R", "--noconfirm", p], check=False) != 0]
+                    if len(left) == len(pending):
+                        print("kept (still required): " + " ".join(left), flush=True)
+                        break
+                    pending = left
         missing = [p for p in plan.install if p not in installed]
         if missing:
             rc = _run(chroot + pac + ["-S"] + missing, check=False)

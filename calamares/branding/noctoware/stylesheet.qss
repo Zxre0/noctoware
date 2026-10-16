@@ -1,0 +1,18 @@
+/* Noctoware installer: purple on black (Qt stylesheet). MIT. */
+QWidget { background-color: #0f0a18; color: #e9ddff; }
+QLabel { background: transparent; }
+#mainApp, #slideshow, #globalStorageView { background-color: #0f0a18; }
+QPushButton { background-color: #241838; color: #e9ddff; border: 1px solid #3b2366; border-radius: 6px; padding: 6px 14px; }
+QPushButton:hover { background-color: #2f2048; }
+QPushButton:disabled { color: #6d5a91; border-color: #241838; }
+QPushButton:default, #view-button-next { background-color: #9b6bff; color: #0b0712; border: none; }
+QLineEdit, QComboBox, QSpinBox, QTextEdit, QPlainTextEdit, QListView, QTreeView, QTableView {
+    background-color: #160e24; color: #e9ddff; border: 1px solid #3b2366; border-radius: 6px;
+    selection-background-color: #9b6bff; selection-color: #0b0712; }
+QComboBox QAbstractItemView { background-color: #160e24; color: #e9ddff; }
+QRadioButton, QCheckBox { background: transparent; color: #e9ddff; }
+QProgressBar { background-color: #160e24; border: 1px solid #3b2366; border-radius: 6px; text-align: center; color: #e9ddff; }
+QProgressBar::chunk { background-color: #9b6bff; border-radius: 5px; }
+QScrollBar:vertical { background: #0f0a18; width: 10px; }
+QScrollBar::handle:vertical { background: #3b2366; border-radius: 5px; }
+QToolTip { background-color: #160e24; color: #e9ddff; border: 1px solid #9b6bff; }

@@ -16,7 +16,7 @@ pkgname=noctoware-hyde
 _commit=fa2fd57afc7203b1b5653d3271f3a57ea3873f97
 _hydever=26.8.1
 pkgver=26.8.1.r20261003
-pkgrel=1
+pkgrel=3
 pkgdesc="HyDE Hyprland desktop, packaged and themed for Noctoware Linux"
 arch=('x86_64')
 url="https://github.com/HyDE-Project/HyDE"
@@ -103,6 +103,10 @@ package() {
   install -Dm644 "$root/desktop/session/noctoware-hyprland.desktop" \
     "$pkgdir/usr/share/wayland-sessions/noctoware-hyprland.desktop"
 
+  install -Dm644 "$root/desktop/hyde/systemd/10-noctoware-restart.conf" \
+    "$pkgdir/usr/lib/systemd/user/hyde-Hyprland-bar.service.d/10-noctoware-restart.conf"
+  install -Dm644 "$root/desktop/hyde/systemd/10-noctoware-live-noidle.conf" \
+    "$pkgdir/usr/lib/systemd/user/hyde-Hyprland-idle.service.d/10-noctoware-live-noidle.conf"
   install -Dm644 HyDE/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 HyDE/CREDITS.md "$pkgdir/usr/share/licenses/$pkgname/CREDITS.md"
 }

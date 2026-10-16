@@ -1,0 +1,11 @@
+#!/bin/bash
+# run-in-target ROOT SCRIPT [ARGS...]   (live host side)
+# Copy one of the installer's scripts into the target and run it chrooted.
+# The installer package itself is removed from the target early, so scripts
+# must not be executed from the target's own /usr/share/noctoware/calamares.
+set -euo pipefail
+root="$1" script="$2"; shift 2
+tmp="$(mktemp -p "$root/tmp" noctoware-XXXXXX)"
+trap 'rm -f "$tmp"' EXIT
+install -m755 "$script" "$tmp"
+chroot "$root" "/tmp/${tmp##*/}" "$@"

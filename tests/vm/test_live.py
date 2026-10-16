@@ -14,7 +14,8 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from vmctl import VM  # noqa: E402
+from vmctl import VM, RepoServer  # noqa: E402
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class Checks:
@@ -91,6 +92,8 @@ def main() -> int:
 
         time.sleep(8)
         vm.screenshot("live-desktop")
+        rc, out = vm.qga.run("ldd /usr/bin/calamares | grep 'not found'; echo rc=$?")
+        c.check("calamares binary links against installed libraries", out.strip().endswith("rc=1"), out)
 
         rc, out = vm.qga.run("pacman -Q steam openai-codex noctoware-desktop noctoware-hyde linux-cachyos linux-cachyos-lts")
         c.check("Steam, Codex, desktop and kernels installed", rc == 0, out)
@@ -118,10 +121,14 @@ def main() -> int:
         except (ValueError, KeyError) as e:
             c.check("GPU detection: virtual GPU identified", False, f"{e}: {out}")
 
+        # [noctoware] is served from this machine (the public repo may not be
+        # published yet); Arch and CachyOS come from their real mirrors.
         try:
             vm.wait_for("systemctl is-active pacman-init", timeout=180)
-            rc, out = vm.qga.run("pacman -Sy --noconfirm 2>&1 && pacman -Sl noctoware | head -3", timeout=300)
-            c.check("pacman syncs [noctoware], [cachyos], core, extra, multilib",
+            with RepoServer(ROOT / "repository/x86_64") as url:
+                vm.qga.run(f"sed -i 's|^Server = .*|Server = {url}|' /etc/pacman.d/noctoware-mirrorlist")
+                rc, out = vm.qga.run("pacman -Sy --noconfirm 2>&1 && pacman -Sl noctoware | head -3", timeout=300)
+            c.check("pacman syncs [noctoware], [cachyos], core, extra, multilib (signed dbs)",
                     rc == 0 and all(r in out for r in ("noctoware", "cachyos", "core", "extra", "multilib")), out)
         except TimeoutError as e:
             c.check("pacman syncs repositories", False, str(e))

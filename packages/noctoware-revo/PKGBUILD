@@ -9,7 +9,7 @@ pkgver=0.1
 pkgrel=1
 pkgdesc="Noctoware shell switcher and on-demand Revo Shell installer (Revo fetched from upstream)"
 arch=('any')
-url="https://github.com/noctoware/noctoware"
+url="https://github.com/Zxre0/noctoware"
 license=('MIT')
 depends=('noctoware-hyde' 'hyprland' 'hyprpm' 'quickshell' 'git' 'bash')
 

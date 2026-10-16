@@ -23,7 +23,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 APP_ID = "org.noctoware.Welcome"
-DOCS_URL = "https://github.com/noctoware/noctoware/tree/main/docs"
+DOCS_URL = "https://github.com/Zxre0/noctoware/tree/main/docs"
 LOCAL_DOCS = Path("/usr/share/doc/noctoware")
 CONFIG = Path(GLib.get_user_config_dir()) / "noctoware" / "welcome.json"
 CSS = b"""
@@ -34,8 +34,11 @@ window { background: #0b0712; color: #e9ddff; }
 .card-title { font-weight: 600; font-size: 15px; }
 .status { color: #a493c4; font-size: 12px; }
 .mono { font-family: monospace; font-size: 12px; }
-button.suggested-action { background: #9b6bff; color: #0b0712; border-radius: 9px; }
-button { border-radius: 9px; }
+button { border-radius: 9px; background: #241838; color: #e9ddff; border: 1px solid #3b2366; }
+button:hover { background: #2f2048; }
+button.suggested-action { background: #9b6bff; color: #0b0712; border: none; }
+button.suggested-action:hover { background: #ad85ff; }
+button label { color: inherit; }
 """
 
 

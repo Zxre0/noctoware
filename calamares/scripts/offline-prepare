@@ -7,7 +7,7 @@ set -euo pipefail
 root="$1" offline=/opt/noctoware/offline
 [[ -d "$offline/sync" ]] || { echo "no offline sync snapshot; online install only"; exit 0; }
 install -d "$root/var/lib/pacman/sync"
-for db in "$offline"/sync/*.db; do
-    cp -f "$db" "$root/var/lib/pacman/sync/"
+for f in "$offline"/sync/*.db "$offline"/sync/*.sig; do
+    [[ -e "$f" ]] && cp -f "$f" "$root/var/lib/pacman/sync/"
 done
 echo "[noctoware offline-prepare] seeded $(ls "$offline"/sync/*.db | wc -l) sync databases"

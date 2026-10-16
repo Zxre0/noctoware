@@ -1,10 +1,10 @@
 # Maintainer: Noctoware Project
 pkgname=noctoware-welcome
 pkgver=0.1
-pkgrel=1
+pkgrel=2
 pkgdesc="Noctoware Linux welcome app: updates, GPU drivers, Steam, AI tools, themes, docs"
 arch=('any')
-url="https://github.com/noctoware/noctoware"
+url="https://github.com/Zxre0/noctoware"
 license=('MIT')
 depends=('python' 'python-gobject' 'gtk4' 'pacman-contrib' 'fastfetch' 'noctoware-system' 'xdg-utils')
 

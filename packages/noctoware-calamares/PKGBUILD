@@ -1,0 +1,70 @@
+# Maintainer: Noctoware Project
+# Based on CachyOS' cachyos-calamares PKGBUILD (GPL-3.0-or-later), maintained by
+# Peter Jung and Vladislav Nepogodin.
+#
+# Why Noctoware builds it: the generic-x86-64 [cachyos] binary is linked
+# against CachyOS' own boost (1.91 at the time of writing) while Noctoware
+# uses Arch's boost (1.92), so the prebuilt installer could not start
+# (libboost_python314.so.1.91.0 missing).  Building from the same source
+# against Arch's libraries fixes that; the live test checks `ldd` on every
+# ISO so a future soname drift is caught immediately.
+pkgname=noctoware-calamares
+_commit=5f098957d35f5272c2519ab496f237be1de7118b   # CachyOS/cachyos-calamares, branch "cachyos"
+pkgver=3.4.2
+pkgrel=1
+pkgdesc='Distribution-independent installer framework (CachyOS fork, built for Noctoware)'
+arch=('x86_64')
+license=('GPL-3.0-or-later')
+url="https://github.com/CachyOS/cachyos-calamares"
+provides=('calamares')
+conflicts=('calamares' 'cachyos-calamares')
+depends=(boost-libs ckbcomp cryptsetup dmidecode gptfdisk hwinfo kconfig kcoreaddons kcrash ki18n
+         kparts kpmcore kservice kwidgetsaddons libpwquality mkinitcpio-openswap networkmanager
+         polkit-qt6 python qt6-declarative qt6-svg rsync solid squashfs-tools upower yaml-cpp
+         qt6-imageformats)
+makedepends=(boost cmake doxygen extra-cmake-modules git ninja python-jsonschema python-pyaml
+             python-unidecode qt6-tools)
+source=("calamares::git+${url}.git#commit=${_commit}")
+sha256sums=('SKIP')
+options=('!emptydirs')
+
+prepare() {
+  cd calamares
+  sed -i -e "s|\${CALAMARES_VERSION_MAJOR}.\${CALAMARES_VERSION_MINOR}.\${CALAMARES_VERSION_PATCH}|${pkgver}-${pkgrel}|g" \
+         -e "s|CALAMARES_VERSION_RC 1|CALAMARES_VERSION_RC 0|g" CMakeLists.txt
+}
+
+build() {
+  cd calamares
+  export CXXFLAGS+=" -fPIC"
+  cmake -S . -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DWITH_APPSTREAM=OFF \
+    -DWITH_PYBIND11=OFF \
+    -DWITH_QT6=ON \
+    -DSKIP_MODULES="dracut dracutlukscfg dummycpp dummyprocess dummypython dummypythonqt \
+      finishedq keyboardq license localeq notesqml oemid openrcdmcryptcfg packagechooserq \
+      fsresizer rawfs mkinitfs contextualprocess interactiveterminal plasmalnf services-openrc \
+      summaryq tracking usersq webview welcomeq"
+  cmake --build build
+}
+
+check() {
+  # every module the Noctoware installer sequence uses must have been built
+  local m
+  for m in welcome locale keyboard partition packagechooser users summary mount unpackfs machineid \
+           fstab localecfg luksbootkeyfile luksopenswaphookcfg initcpiocfg removeuser displaymanager \
+           networkcfg hwclock shellprocess grubcfg bootloader services-systemd umount finished; do
+    [[ -n "$(find calamares/build/src/modules/$m -maxdepth 2 \( -name '*.so' -o -name 'module.desc' \) 2>/dev/null)" ]] ||
+      [[ -f calamares/src/modules/$m/main.py ]] || { echo "module $m missing"; return 1; }
+  done
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install calamares/build
+  # Noctoware passes its own configuration directory (calamares -c); the
+  # fork's CachyOS-specific /etc/calamares tree and desktop entry are omitted.
+  rm -rf "$pkgdir/usr/share/applications" "$pkgdir/etc/calamares"
+}

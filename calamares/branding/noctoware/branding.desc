@@ -17,10 +17,10 @@ strings:
     versionedName:       "Noctoware Linux 0.1 Alpha"
     shortVersionedName:  "Noctoware 0.1"
     bootloaderEntryName: "Noctoware"
-    productUrl:          "https://github.com/noctoware/noctoware"
-    supportUrl:          "https://github.com/noctoware/noctoware/discussions"
-    knownIssuesUrl:      "https://github.com/noctoware/noctoware/blob/main/docs/KNOWN_ISSUES.md"
-    releaseNotesUrl:     "https://github.com/noctoware/noctoware/blob/main/docs/PROGRESS.md"
+    productUrl:          "https://github.com/Zxre0/noctoware"
+    supportUrl:          "https://github.com/Zxre0/noctoware/discussions"
+    knownIssuesUrl:      "https://github.com/Zxre0/noctoware/blob/main/docs/KNOWN_ISSUES.md"
+    releaseNotesUrl:     "https://github.com/Zxre0/noctoware/blob/main/docs/PROGRESS.md"
     donateUrl:           ""
 
 images:

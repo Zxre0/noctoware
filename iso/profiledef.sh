@@ -4,7 +4,7 @@
 # generates the build-time pacman.conf (frozen DB snapshot + local repo).
 iso_name="noctoware"
 iso_label="NOCTO_$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y%m)"
-iso_publisher="Noctoware Linux <https://github.com/noctoware/noctoware>"
+iso_publisher="Noctoware Linux <https://github.com/Zxre0/noctoware>"
 iso_application="Noctoware Linux Live/Install medium"
 iso_version="0.1-alpha-$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
 install_dir="arch"

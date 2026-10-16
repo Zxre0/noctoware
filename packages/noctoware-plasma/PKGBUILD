@@ -13,7 +13,7 @@ pkgver=0.1
 pkgrel=2
 pkgdesc="KDE Plasma 6 (Wayland) as an optional Noctoware desktop, with Noctoware branding"
 arch=('any')
-url="https://github.com/noctoware/noctoware"
+url="https://github.com/Zxre0/noctoware"
 license=('MIT')
 _plasma=(
   aurorae bluedevil breeze breeze-gtk discover drkonqi flatpak-kcm kactivitymanagerd

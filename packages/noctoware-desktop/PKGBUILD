@@ -5,7 +5,7 @@ pkgver=0.1
 pkgrel=2
 pkgdesc="Noctoware Linux default desktop (Hyprland + HyDE)"
 arch=('any')
-url="https://github.com/noctoware/noctoware"
+url="https://github.com/Zxre0/noctoware"
 license=('MIT')
 depends=('noctoware-system' 'noctoware-branding' 'noctoware-hyde' 'noctoware-sddm-theme'
          'noctoware-welcome' 'noctoware-gaming' 'noctoware-ai-tools'

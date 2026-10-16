@@ -89,13 +89,13 @@ class QMP:
     def type(self, text: str) -> None:
         for ch in text:
             if ch.isalpha():
-                self.keys(("shift-" if ch.isupper() else "") + ch.lower(), gap=0.03)
+                self.keys(("shift-" if ch.isupper() else "") + ch.lower(), gap=0.09)
             elif ch.isdigit():
-                self.keys(ch, gap=0.03)
+                self.keys(ch, gap=0.09)
             elif ch in self._PLAIN:
-                self.keys(self._PLAIN[ch], gap=0.03)
+                self.keys(self._PLAIN[ch], gap=0.09)
             elif ch in self._SHIFTED:
-                self.keys("shift-" + self._SHIFTED[ch], gap=0.03)
+                self.keys("shift-" + self._SHIFTED[ch], gap=0.09)
             else:
                 raise ValueError(f"cannot type {ch!r}")
 
@@ -205,7 +205,8 @@ class VM:
         else:
             a += ["-device", "virtio-vga,xres=1920,yres=1080", "-display", "none"]
         if self.disk:
-            a += ["-drive", f"file={self.disk},format=raw,if=virtio,cache=unsafe,discard=unmap"]
+            fmt = "qcow2" if str(self.disk).endswith(".qcow2") else "raw"
+            a += ["-drive", f"file={self.disk},format={fmt},if=virtio,cache=unsafe,discard=unmap"]
         if self.iso:
             a += ["-drive", f"file={self.iso},media=cdrom,readonly=on,if=none,id=cd0",
                   "-device", "ide-cd,drive=cd0,bootindex=0"]
@@ -251,9 +252,47 @@ class VM:
             time.sleep(interval)
         raise TimeoutError(f"condition not met within {timeout}s: {cmd}\nlast output: {last}")
 
-    def screenshot(self, name: str) -> Path:
+    def paste(self, text: str) -> None:
+        """Type text reliably: put it on the session's Wayland clipboard and
+        press Ctrl+V (synthetic key events can be dropped by busy guests)."""
+        import shlex
+        rc, out = self.qga.run(
+            "for d in /run/user/*/; do u=$(stat -c %U $d); s=$(ls $d | grep -E '^wayland-[0-9]+$' | head -1); "
+            f"[ -n \"$s\" ] && {{ printf %s {shlex.quote(text)} | runuser -u $u -- env XDG_RUNTIME_DIR=$d "
+            "WAYLAND_DISPLAY=$s wl-copy; exit 0; }; done; exit 3", timeout=30)
+        if rc != 0:
+            raise RuntimeError(f"wl-copy failed: {out}")
+        time.sleep(0.3)
+        self.qmp.keys("ctrl-v")
+        time.sleep(0.3)
+
+    def fill(self, x: int, y: int, text: str) -> None:
+        """Click a text field, clear it and paste text into it."""
+        self.qmp.click(x, y, 1920, 1080)
+        time.sleep(0.4)
+        self.qmp.keys("ctrl-a", "backspace")
+        self.paste(text)
+
+    def screenshot(self, name: str, user: str | None = None) -> Path:
+        """Screenshot of what the user sees.  With a Wayland session running,
+        capture inside the compositor (grim): QEMU's screendump cannot read
+        GL/dmabuf scanouts under egl-headless.  Falls back to screendump
+        (boot menus, SDDM's X11 greeter, consoles)."""
         p = self.dir / f"{name}.png"
-        self.qmp.screenshot(str(p))
+        try:
+            rc, out = self.qga.run(
+                "for d in /run/user/*/; do u=$(stat -c %U $d); s=$(ls $d | grep -E '^wayland-[0-9]+$' | head -1); "
+                "[ -n \"$s\" ] && { runuser -u $u -- env XDG_RUNTIME_DIR=$d WAYLAND_DISPLAY=$s grim -t png - | base64 -w0; exit 0; }; done; exit 3",
+                timeout=60)
+            if rc == 0 and out:
+                p.write_bytes(base64.b64decode(out))
+                return p
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.qmp.screenshot(str(p))
+        except RuntimeError:
+            pass
         return p
 
     def stop(self, timeout: float = 60) -> None:
@@ -268,3 +307,29 @@ class VM:
             self.proc.wait()
         finally:
             self.proc = None
+
+
+def create_disk(path: Path, size: str = "64G") -> Path:
+    path = Path(path)
+    if path.exists():
+        path.unlink()
+    subprocess.run(["qemu-img", "create", "-q", "-f", "qcow2", str(path), size], check=True)
+    return path
+
+
+class RepoServer:
+    """Serve a local directory over HTTP to the guest (QEMU user-net: host = 10.0.2.2)."""
+    def __init__(self, directory: Path, port: int = 8080):
+        self.dir, self.port = Path(directory), port
+        self.proc = None
+
+    def __enter__(self):
+        self.proc = subprocess.Popen(["python3", "-m", "http.server", str(self.port), "--bind", "0.0.0.0",
+                                      "--directory", str(self.dir)],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(1)
+        return f"http://10.0.2.2:{self.port}"
+
+    def __exit__(self, *exc):
+        self.proc.terminate()
+        self.proc.wait()

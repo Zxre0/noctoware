@@ -2,6 +2,7 @@
 # install-desktop ROOT CHOICE   (runs on the live host, acts on ROOT)
 # CHOICE: hyprland | hyprland-plasma
 set -euo pipefail
+export SNAP_PAC_SKIP=y   # snapper is configured at the end of the install
 root="$1" choice="${2:-hyprland}"
 offline=/opt/noctoware/offline/pkg
 echo "[noctoware install-desktop] choice=$choice"

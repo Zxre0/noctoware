@@ -4,12 +4,12 @@
 # Only installed on the live ISO; removed from the target during installation.
 pkgname=noctoware-calamares-config
 pkgver=0.1
-pkgrel=1
+pkgrel=5
 pkgdesc="Noctoware Linux Calamares installer configuration and branding"
 arch=('any')
-url="https://github.com/noctoware/noctoware"
+url="https://github.com/Zxre0/noctoware"
 license=('MIT' 'CC-BY-SA-4.0')
-depends=('cachyos-calamares' 'noctoware-system' 'arch-install-scripts' 'sudo')
+depends=('calamares' 'noctoware-system' 'arch-install-scripts' 'sudo')
 
 package() {
   local root c; root="$(realpath "$startdir/../..")"; c="$root/calamares"
@@ -20,6 +20,8 @@ package() {
   install -d "$dest/scripts"
   install -m755 "$c"/scripts/* "$dest/scripts/"
   find "$dest" -type d -exec chmod 755 {} +
+  # `calamares -c DIR` also looks for qml/ inside DIR
+  ln -s /usr/share/calamares/qml "$dest/qml"
   install -Dm755 "$root/desktop/installer/noctoware-installer" "$pkgdir/usr/bin/noctoware-installer"
   install -Dm644 "$root/desktop/installer/noctoware-installer.desktop" \
     "$pkgdir/usr/share/applications/noctoware-installer.desktop"

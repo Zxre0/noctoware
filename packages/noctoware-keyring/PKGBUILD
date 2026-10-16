@@ -6,7 +6,7 @@ pkgver=20261015
 pkgrel=1
 pkgdesc="Noctoware Linux PGP keyring for pacman"
 arch=('any')
-url="https://github.com/noctoware/noctoware"
+url="https://github.com/Zxre0/noctoware"
 license=('MIT')
 install=noctoware-keyring.install
 

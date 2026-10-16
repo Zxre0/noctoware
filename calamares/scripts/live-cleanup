@@ -20,23 +20,33 @@ rm -f /etc/sudoers.d/90-noctoware-live \
       /etc/motd \
       /etc/systemd/system/noctoware-live-setup.service \
       /etc/systemd/system/multi-user.target.wants/noctoware-live-setup.service \
-      /usr/local/bin/noctoware-live-setup
+      /usr/local/bin/noctoware-live-setup \
+      /etc/systemd/system/sleep.target /etc/systemd/system/suspend.target \
+      /etc/systemd/system/hibernate.target /etc/systemd/system/hybrid-sleep.target \
+      /etc/systemd/system/suspend-then-hibernate.target
 rmdir /etc/systemd/system/getty@tty1.service.d 2>/dev/null || true
 rm -rf /root/.automated_script.sh /root/.zlogin
 # live session logs, caches and host keys must not leak into the install
 rm -rf /var/log/journal/* /var/cache/pacman/pkg/* /home/liveuser/.cache 2>/dev/null
 rm -f /etc/ssh/ssh_host_* 2>/dev/null
 
-# 2. pacman keyring
+# 2. kernels in /boot (archiso keeps them only on the ISO); pacman hooks
+#    that run mkinitcpio during the following steps need them
+for pb in /usr/lib/modules/*/pkgbase; do
+    install -Dm644 "${pb%/pkgbase}/vmlinuz" "/boot/vmlinuz-$(<"$pb")"
+done
+rm -f /etc/mkinitcpio.conf.d/archiso.conf
+
+# 3. pacman keyring
 log "initialising pacman keyring"
 rm -rf /etc/pacman.d/gnupg
 pacman-key --init
 pacman-key --populate archlinux cachyos noctoware
 
-# 3. the installer itself is not part of the installed system
+# 4. the installer itself is not part of the installed system
 log "removing installer packages"
-pacman -Rns --noconfirm noctoware-calamares-config cachyos-calamares 2>/dev/null ||
-    pacman -Rdd --noconfirm noctoware-calamares-config cachyos-calamares 2>/dev/null || true
+pacman -Rns --noconfirm noctoware-calamares-config noctoware-calamares 2>/dev/null ||
+    pacman -Rdd --noconfirm noctoware-calamares-config noctoware-calamares 2>/dev/null || true
 for p in noctoware-live; do
     pacman -Q "$p" >/dev/null 2>&1 && pacman -Rns --noconfirm "$p"
 done

@@ -6,7 +6,7 @@ pkgver=0.1
 pkgrel=1
 pkgdesc="Noctoware Linux release and identification files"
 arch=('any')
-url="https://github.com/noctoware/noctoware"
+url="https://github.com/Zxre0/noctoware"
 license=('MIT')
 install=noctoware-release.install
 
