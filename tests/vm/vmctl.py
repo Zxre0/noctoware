@@ -260,8 +260,10 @@ class VM:
         import shlex
         rc, out = self.qga.run(
             "for d in /run/user/*/; do u=$(stat -c %U $d); s=$(ls $d | grep -E '^wayland-[0-9]+$' | head -1); "
-            f"[ -n \"$s\" ] && {{ printf %s {shlex.quote(text)} | runuser -u $u -- env XDG_RUNTIME_DIR=$d "
-            "WAYLAND_DISPLAY=$s wl-copy; exit 0; }; done; exit 3", timeout=30)
+            # text as an argument and no inherited stdio: wl-copy forks to serve the
+            # clipboard and must not keep the guest agent's output pipes open
+            f"[ -n \"$s\" ] && {{ runuser -u $u -- env XDG_RUNTIME_DIR=$d WAYLAND_DISPLAY=$s "
+            f"wl-copy -- {shlex.quote(text)} </dev/null >/dev/null 2>&1; exit 0; }}; done; exit 3", timeout=30)
         if rc != 0:
             raise RuntimeError(f"wl-copy failed: {out}")
         time.sleep(0.3)

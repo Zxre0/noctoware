@@ -15,7 +15,8 @@ for l in "$T"/usr/share/noctoware/hyde/themes/Noctoware/{wallpapers,logo}/*; do 
 H="$T/home"; mkdir -p "$H"
 sum() { (cd "$T/usr" && find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum); }
 before="$(sum)"
-dep() { env -i PATH="$T/usr/bin:/usr/bin:/bin" HOME="$H" USER=test LANG=C.UTF-8 \
+# runs in a network namespace with no connectivity: first login must work offline
+dep() { unshare --user --map-current-user --net env -i PATH="$T/usr/bin:/usr/bin:/bin" HOME="$H" USER=test LANG=C.UTF-8 \
           NOCTO_HYDE_SHARE="$T/usr/share/noctoware/hyde" NOCTO_HYDE_VENV="$T/usr/lib/noctoware/hyde/python_env" \
           "$T/usr/bin/noctoware-hyde-deploy" "$@" >"$T/deploy.log" 2>&1; }
 dep

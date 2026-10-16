@@ -15,8 +15,10 @@
 pkgname=noctoware-hyde
 _commit=fa2fd57afc7203b1b5653d3271f3a57ea3873f97
 _hydever=26.8.1
+_contrib=a2b16bd4b8550c013ef0a105c8b01bdcc1a270d0   # hyprwm/contrib (grimblast), MIT
+_app2unit=47e23ec6ab9e97bbe335c32fb640744a29bf32f7  # Vladimir-csp/app2unit, GPL-3.0
 pkgver=26.8.1.r20261003
-pkgrel=4
+pkgrel=5
 pkgdesc="HyDE Hyprland desktop, packaged and themed for Noctoware Linux"
 arch=('x86_64')
 url="https://github.com/HyDE-Project/HyDE"
@@ -24,7 +26,7 @@ license=('GPL-3.0-only')
 depends=(
   # compositor + session
   'hyprland' 'uwsm' 'hyprlock' 'hypridle' 'hyprsunset' 'hyprpicker' 'hyprpolkitagent'
-  'hyprquery' 'xdg-desktop-portal-hyprland' 'xdg-desktop-portal-gtk' 'xdg-user-dirs'
+  'hyprquery' 'xdg-terminal-exec' 'xdg-desktop-portal-hyprland' 'xdg-desktop-portal-gtk' 'xdg-user-dirs'
   # shell UI
   'waybar' 'rofi' 'dunst' 'wlogout' 'awww' 'libnotify'
   # screenshots / clipboard
@@ -50,8 +52,18 @@ optdepends=('electron: apply HyDE Electron Wayland flags'
             'code: HyDE VS Code settings are deployed if installed')
 makedepends=('git' 'uv')
 options=('!strip' '!debug')
-source=("HyDE::git+https://github.com/HyDE-Project/HyDE.git#commit=${_commit}")
-sha256sums=('SKIP')
+# HyDE's deployer would download these at every user's first login (latest
+# versions, needs network).  Noctoware pins and ships them instead.
+source=("HyDE::git+https://github.com/HyDE-Project/HyDE.git#commit=${_commit}"
+        "grimblast-${_contrib:0:7}::https://raw.githubusercontent.com/hyprwm/contrib/${_contrib}/grimblast/grimblast"
+        "grimblast-LICENSE-${_contrib:0:7}::https://raw.githubusercontent.com/hyprwm/contrib/${_contrib}/LICENSE"
+        "app2unit-${_app2unit:0:7}::https://raw.githubusercontent.com/Vladimir-csp/app2unit/${_app2unit}/app2unit"
+        "app2unit-LICENSE-${_app2unit:0:7}::https://raw.githubusercontent.com/Vladimir-csp/app2unit/${_app2unit}/LICENSE")
+sha256sums=('SKIP'
+            '0db2b54c568981408ce968099bfb6df678e35bd408f9bf0461cc4fde0a9653bc'
+            '039b1d07aff15b27af6c1f83ce64d2aeab2d09ba04437524935d9d159b4bbfe9'
+            '71b3cbd03f38de3e6f088e661f6687c28d3273a186bff491943779004b59023b'
+            '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986')
 
 _pyproj=HyDE/Configs/.local/lib/hyde
 
@@ -90,6 +102,13 @@ package() {
   cp -a HyDE/Configs HyDE/Scripts "$share/upstream/"
   rm -rf "$share/upstream/Configs/.local/lib/hyde/.venv"
   install -Dm644 "$root/desktop/hyde/dots-groups/noctoware.toml" "$share/upstream/Scripts/dots-groups/noctoware.toml"
+  python3 "$root/desktop/hyde/strip-network-dots.py" HyDE/Scripts/dots/hyde.toml \
+    "$share/upstream/Scripts/dots/hyde.noctoware.toml" grimblast xdg-terminal-exec app2unit
+  ! grep -q 'https\?://' "$share/upstream/Scripts/dots/hyde.noctoware.toml"
+  install -Dm755 "grimblast-${_contrib:0:7}" "$share/vendor/grimblast"
+  install -Dm755 "app2unit-${_app2unit:0:7}" "$share/vendor/app2unit"
+  install -Dm644 "grimblast-LICENSE-${_contrib:0:7}" "$pkgdir/usr/share/licenses/$pkgname/grimblast-LICENSE"
+  install -Dm644 "app2unit-LICENSE-${_app2unit:0:7}" "$pkgdir/usr/share/licenses/$pkgname/app2unit-LICENSE"
   install -m644 HyDE/Source/arcs/Gtk_Wallbash.tar.gz HyDE/Source/arcs/Icon_Wallbash.tar.gz "$share/arcs/"
   cp -a "$root/desktop/hyde/themes/Noctoware" "$share/themes/"
   install -Dm644 "$root/branding/fastfetch/config.jsonc" "$share/overrides/fastfetch/config.jsonc"

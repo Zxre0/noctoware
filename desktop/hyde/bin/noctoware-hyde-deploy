@@ -82,6 +82,13 @@ if ! "$venv/bin/deez" --source "$SRC" --config "$SRC/Scripts/dots-groups/noctowa
     echo "warning: deez reported failures"; rc=1
 fi
 
+# 3a. Tools HyDE expects per user, shipped pinned instead of downloaded
+#     (same targets as HyDE's dots: grimblast, app2unit, xdg-terminal-exec).
+step "pinned tools"
+install -Dm755 "$SHARE/vendor/grimblast" "$HOME/.local/lib/hyde/screenshot/grimblast"
+install -Dm755 "$SHARE/vendor/app2unit" "$HOME/.local/lib/hyde/app2unit"
+ln -sfn /usr/bin/xdg-terminal-exec "$HOME/.local/bin/xdg-terminal-exec"
+
 # 3b. Wallbash GTK/icon themes.  Upstream extracts these per user because
 #     wallbash rewrites their colours in place on every theme switch.
 step "wallbash gtk/icons"
