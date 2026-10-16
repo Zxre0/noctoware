@@ -55,6 +55,13 @@ step() { echo "--> $*"; }
 
 # Never let a deploy reach into a running compositor or another user's session.
 unset HYPRLAND_INSTANCE_SIGNATURE WAYLAND_DISPLAY DISPLAY
+# HyDE's scripts need a writable runtime dir; logins always have one, but
+# `su`, containers and CI may not.
+if [[ ! -d "${XDG_RUNTIME_DIR:-}" || ! -w "${XDG_RUNTIME_DIR:-}" ]]; then
+    XDG_RUNTIME_DIR="$(mktemp -d -t noctoware-hyde-run.XXXXXX)"
+    export XDG_RUNTIME_DIR
+    trap 'rm -rf "$XDG_RUNTIME_DIR"' EXIT
+fi
 
 # 1. Python environment HyDE expects at ~/.local/state/hyde/python_env.
 #    Copied (reflink on btrfs, so effectively free) instead of symlinked so
