@@ -1,0 +1,29 @@
+# Weekly drift check against Arch, CachyOS and HyDE upstream.
+name: upstream-watch
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - run: |
+          pacman-key --init && pacman-key --populate archlinux
+          pacman -Syu --noconfirm --needed git uv python python-yaml librsvg cmake ninja cli11 nlohmann-json hyprlang hyprutils pkgconf curl jq fakeroot github-cli
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          useradd -m builder; chown -R builder: "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          su builder -c "cd '$GITHUB_WORKSPACE' && scripts/gen-dev-key.sh && scripts/build-packages.sh && scripts/check-dependencies.sh" > report.txt 2>&1 || echo "failed=1" >> "$GITHUB_OUTPUT"
+          git ls-remote https://github.com/HyDE-Project/HyDE HEAD >> report.txt
+      - if: steps.check.outputs.failed == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue create -R "$GITHUB_REPOSITORY" --title "Upstream drift detected ($(date +%F))" --body-file report.txt --label upstream

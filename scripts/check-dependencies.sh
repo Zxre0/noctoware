@@ -68,6 +68,18 @@ if ((${#iso_pkgs[@]})); then
     fi
 fi
 
+# 1b. conflict check (pacman -Sp resolves dependencies but skips conflict
+#     checks; e.g. a provider pick of jack2 next to pipewire-jack)
+echo "noctoware cachyos core extra multilib" >"$W/db/sync/ORDER"
+if ((${#iso_pkgs[@]})); then
+    set_out="$(pac -Sp --print-format '%n' "${iso_pkgs[@]}" noctoware-plasma 2>/dev/null)"
+    if c="$(python3 -I "$NOCTO_ROOT/scripts/lib/pkgset.py" conflicts "$W/db/sync" <<<"$set_out")"; then
+        ok "ISO set + noctoware-plasma: no package conflicts ($(wc -l <<<"$set_out") packages)"
+    else
+        bad "package conflicts in the ISO set:"; echo "$c" >&2
+    fi
+fi
+
 # 2. noctoware-plasma must track plasma-meta minus plasma-login-manager
 meta_deps="$(field "$(si plasma-meta)" "Depends On" | tr -s ' ' '\n' | sed 's/[<>=].*//' | sort -u)"
 ours="$(sed -n '/^_plasma=(/,/^)/p' "$NOCTO_ROOT/packages/noctoware-plasma/PKGBUILD" | tr -s ' ()' '\n' | grep -vE '^(_plasma=|)$' | sort -u)"

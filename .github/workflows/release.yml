@@ -1,0 +1,77 @@
+# Publishes the [noctoware] pacman repository to GitHub Releases.
+#
+# Controlled publishing:
+#   * manual trigger only (workflow_dispatch), from the main branch
+#   * runs in the protected "release" environment: configure required
+#     reviewers in Settings → Environments so a maintainer approves each run
+#   * the signing key (NOCTO_SIGNING_KEY_ASC, NOCTO_SIGNING_KEY_PASSPHRASE)
+#     exists only as an environment secret and only in this job
+#   * pull requests can never reach this job
+name: release-repo
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only show what would be published"
+        type: boolean
+        default: true
+permissions:
+  contents: write
+concurrency:
+  group: release-repo
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: release
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman-key --init && pacman-key --populate archlinux
+          pacman -Syu --noconfirm --needed git uv python python-gobject python-yaml gtk4 librsvg imagemagick \
+            cmake ninja cli11 nlohmann-json hyprlang hyprutils pkgconf rsync curl jq fakeroot github-cli
+      - uses: actions/checkout@v4
+      - name: Prepare builder and import release key
+        env:
+          KEY_ASC: ${{ secrets.NOCTO_SIGNING_KEY_ASC }}
+          KEY_PASS: ${{ secrets.NOCTO_SIGNING_KEY_PASSPHRASE }}
+        run: |
+          [ -n "$KEY_ASC" ] || { echo "NOCTO_SIGNING_KEY_ASC secret missing"; exit 6; }
+          useradd -m builder
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          install -d -m700 -o builder keys/private/gnupg
+          chown -R builder: "$GITHUB_WORKSPACE"
+          su builder -c "GNUPGHOME=$GITHUB_WORKSPACE/keys/private/gnupg gpg --batch --import" <<<"$KEY_ASC"
+          fpr=$(su builder -c "GNUPGHOME=$GITHUB_WORKSPACE/keys/private/gnupg gpg --batch --list-secret-keys --with-colons" | awk -F: '/^fpr:/{print $10; exit}')
+          echo "NOCTO_SIGNING_KEY=$fpr" >> "$GITHUB_ENV"
+          # unlock for unattended signing for the lifetime of this job only
+          su builder -c "echo allow-preset-passphrase >> $GITHUB_WORKSPACE/keys/private/gnupg/gpg-agent.conf"
+          su builder -c "GNUPGHOME=$GITHUB_WORKSPACE/keys/private/gnupg gpgconf --kill gpg-agent"
+          if [ -n "$KEY_PASS" ]; then
+            for grip in $(su builder -c "GNUPGHOME=$GITHUB_WORKSPACE/keys/private/gnupg gpg --list-secret-keys --with-keygrip --with-colons" | awk -F: '/^grp:/{print $10}'); do
+              su builder -c "GNUPGHOME=$GITHUB_WORKSPACE/keys/private/gnupg /usr/lib/gnupg/gpg-preset-passphrase --preset $grip" <<<"$KEY_PASS"
+            done
+          fi
+      - name: Verify the release key matches keys/public
+        run: su builder -c "cd '$GITHUB_WORKSPACE' && grep -q \"^$NOCTO_SIGNING_KEY:\" keys/public/noctoware-trusted"
+      - name: Build and sign
+        run: su builder -c "cd '$GITHUB_WORKSPACE' && NOCTO_SIGNING_KEY=$NOCTO_SIGNING_KEY scripts/build-packages.sh"
+      - name: Checks
+        run: |
+          su builder -c "cd '$GITHUB_WORKSPACE' && tests/run-tests.sh"
+          su builder -c "cd '$GITHUB_WORKSPACE' && scripts/check-dependencies.sh"
+          su builder -c "cd '$GITHUB_WORKSPACE' && scripts/validate-update.sh"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOCTO_GH_OWNER: ${{ github.repository_owner }}
+          NOCTO_GH_REPO: ${{ github.event.repository.name }}
+        run: |
+          args=""; [ "${{ inputs.dry_run }}" = "true" ] || args="--confirm"
+          su builder -c "cd '$GITHUB_WORKSPACE' && GH_TOKEN=$GH_TOKEN NOCTO_GH_OWNER=$NOCTO_GH_OWNER NOCTO_GH_REPO=$NOCTO_GH_REPO NOCTO_SIGNING_KEY=$NOCTO_SIGNING_KEY scripts/publish-repo.sh $args"
+      - name: Verify published repository
+        if: ${{ !inputs.dry_run }}
+        run: su builder -c "cd '$GITHUB_WORKSPACE' && scripts/validate-update.sh --remote"

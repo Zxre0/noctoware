@@ -1,0 +1,43 @@
+# Runs on every push and pull request.  Builds all packages with a throwaway
+# key, runs the fast test suite and the dependency/update checks.
+# Never publishes anything and never sees the release signing key.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman-key --init && pacman-key --populate archlinux
+          pacman -Syu --noconfirm --needed git uv python python-gobject python-yaml gtk4 librsvg imagemagick \
+            cmake ninja cli11 nlohmann-json hyprlang hyprutils pkgconf rsync curl jq fakeroot shellcheck
+      - uses: actions/checkout@v4
+      - name: Create unprivileged builder (makepkg refuses root)
+        run: |
+          useradd -m builder
+          chown -R builder: "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Build and sign packages (ephemeral CI key)
+        run: su builder -c "cd '$GITHUB_WORKSPACE' && scripts/gen-dev-key.sh && scripts/build-packages.sh"
+      - name: Fast tests
+        run: su builder -c "cd '$GITHUB_WORKSPACE' && tests/run-tests.sh"
+      - name: Dependency check against live Arch + CachyOS repositories
+        run: su builder -c "cd '$GITHUB_WORKSPACE' && scripts/check-dependencies.sh"
+      - name: Simulate sudo pacman -Syu from the published repository
+        run: su builder -c "cd '$GITHUB_WORKSPACE' && scripts/validate-update.sh"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs
+          path: work/logs/

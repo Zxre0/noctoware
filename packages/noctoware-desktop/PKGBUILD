@@ -2,7 +2,7 @@
 # The default Noctoware desktop: Hyprland + HyDE, SDDM, Steam, AI tools.
 pkgname=noctoware-desktop
 pkgver=0.1
-pkgrel=1
+pkgrel=2
 pkgdesc="Noctoware Linux default desktop (Hyprland + HyDE)"
 arch=('any')
 url="https://github.com/noctoware/noctoware"
@@ -11,7 +11,7 @@ depends=('noctoware-system' 'noctoware-branding' 'noctoware-hyde' 'noctoware-sdd
          'noctoware-welcome' 'noctoware-gaming' 'noctoware-ai-tools'
          'linux-cachyos' 'linux-cachyos-headers' 'linux-cachyos-lts'
          'sddm' 'kitty' 'fastfetch' 'networkmanager' 'bluez' 'bluez-utils'
-         'pipewire' 'pipewire-pulse' 'wireplumber'
+         'pipewire' 'pipewire-pulse' 'pipewire-jack' 'wireplumber'
          'xdg-desktop-portal' 'xdg-desktop-portal-hyprland' 'xdg-desktop-portal-gtk'
          'polkit' 'sudo' 'zsh' 'man-db' 'firefox')
 optdepends=('noctoware-plasma: KDE Plasma 6 as an additional desktop session'

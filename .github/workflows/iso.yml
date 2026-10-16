@@ -1,0 +1,36 @@
+# Builds the ISO on demand and uploads it as a workflow artifact.
+# Publishing an ISO as a GitHub Release is a separate, manual maintainer step.
+name: build-iso
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  iso:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+      options: --privileged
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman-key --init && pacman-key --populate archlinux
+          pacman -Syu --noconfirm --needed git archiso uv python python-gobject python-yaml gtk4 librsvg imagemagick \
+            cmake ninja cli11 nlohmann-json hyprlang hyprutils pkgconf rsync curl jq fakeroot
+      - uses: actions/checkout@v4
+      - name: CachyOS keyring (needed to verify [cachyos] packages)
+        run: |
+          f=$(curl -fsSL https://mirror.cachyos.org/repo/x86_64/cachyos/ | grep -o 'cachyos-keyring-[0-9][^"]*-any\.pkg\.tar\.zst' | sort -V | tail -1)
+          curl -fsSLO "https://mirror.cachyos.org/repo/x86_64/cachyos/$f"
+          pacman -U --noconfirm "$f"
+      - name: Build packages (ephemeral key) and ISO
+        run: |
+          useradd -m builder; chown -R builder: "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          su builder -c "cd '$GITHUB_WORKSPACE' && scripts/gen-dev-key.sh && scripts/build-packages.sh"
+          scripts/build-iso.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noctoware-iso
+          path: out/
+          compression-level: 0

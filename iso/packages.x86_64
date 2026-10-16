@@ -45,6 +45,7 @@ nvme-cli
 zram-generator
 
 ## networking
+pipewire-jack
 networkmanager
 network-manager-applet
 wpa_supplicant
