@@ -18,6 +18,8 @@ drift).
 | HyDE | github.com/HyDE-Project/HyDE @ fa2fd57 (v26.8.1) | GPL-3.0-only | `noctoware-hyde` ships the unmodified upstream tree (only `pyproject.toml`/`uv.lock` re-locked without `xdg-prefs`) | ✅ GPL: license + CREDITS shipped; source = pinned upstream commit + `packages/noctoware-hyde/PKGBUILD` |
 | HyDE Python deps (deez-dots, pyprland, loguru, requests, websockets, pulsectl, uv, …) | PyPI / GitHub, versions from HyDE's `uv.lock` | MIT / Apache-2.0 / LGPL-2.1+ (pulsectl: MIT) | bundled venv in `noctoware-hyde` | ✅ permissive; metadata (incl. licenses) in each `*.dist-info` |
 | Wallbash GTK / icon themes | HyDE `Source/arcs` | GPL-3.0 (HyDE) | extracted per user | ✅ |
+| grimblast | github.com/hyprwm/contrib @ a2b16bd | MIT | vendored in `noctoware-hyde` (HyDE would download it at first login) | ✅ unmodified, license shipped |
+| app2unit | github.com/Vladimir-csp/app2unit @ 47e23ec | GPL-3.0 | vendored in `noctoware-hyde` (same reason) | ✅ unmodified, license shipped; source = pinned commit |
 | hyprquery | github.com/HyDE-Project/hyprquery @ 002af78 | LGPL-3.0-only | built from source in `[noctoware]` | ✅ unmodified, license shipped |
 | Bibata cursor theme 2.0.7 | github.com/ful1e5/Bibata_Cursor | GPL-3.0-only | repackaged release in `[noctoware]` | ✅ unmodified, license shipped |
 | Calamares (CachyOS build) | github.com/CachyOS/cachyos-calamares | GPL-3.0-or-later | used unmodified from `[cachyos]` on the live ISO only; Noctoware config is separate (`noctoware-calamares-config`) | ✅ |
@@ -33,6 +35,7 @@ drift).
 | SDDM | `[extra]` | GPL-2.0-only | Noctoware theme is original (MIT code, CC-BY-SA art) |
 | KDE Plasma 6 + apps | `[extra]` | GPL-2.0+/LGPL-2.0+ | optional (`noctoware-plasma`) |
 | Steam (bootstrap) | `[multilib]` | Steam Subscriber Agreement | the Arch `steam` package is a launcher that downloads the Steam runtime under Valve's terms on first start; preinstalled the same way CachyOS and Garuda do |
+| xdg-terminal-exec | `[extra]` | GPL-3.0 | HyDE's terminal launcher (instead of HyDE's download) |
 | OpenAI Codex CLI | `[extra]` `openai-codex` | Apache-2.0 | preinstalled; NOTICE/license from the Arch package |
 | Firefox | `[extra]` | MPL-2.0 | |
 | kitty | `[extra]` | GPL-3.0-only | |

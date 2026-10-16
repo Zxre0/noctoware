@@ -20,6 +20,14 @@ Detection is the PCI device ID: every NVIDIA GPU with device ID ≥ 0x1E00
 real PCI IDs (RTX 2080/3060M/4070S/4090/5090, GTX 1660/1080, Arc A770,
 RX 7900 XTX, hybrids, VMs, Secure Boot, DKMS).
 
+## Testing without the hardware
+`noctoware-gpu` reads PCI ids from `/run/noctoware/gpu-mock-ids` when that
+file exists (tmpfs only, never persisted). The VM tests use it to install
+the hybrid Intel + NVIDIA stack through the real installer, fully offline:
+`tests/vm/test_install.py ISO --no-net --mock-gpu 1af4:1050,8086:9bc4,10de:2560`.
+This proves package selection, offline availability and system integration,
+not that the driver works on a physical GPU.
+
 ## DKMS alternative
 `NOCTO_NVIDIA_DKMS=1 noctoware-gpu apply --root / --dkms` (or at install
 time) uses `nvidia-open-dkms` + kernel headers instead of the prebuilt
